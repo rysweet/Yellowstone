@@ -8,11 +8,12 @@ using KQL's native graph operators.
 __version__ = "0.1.0"
 __author__ = "Ryan Sweet"
 
-from .translator import CypherTranslator
 from .models import CypherQuery, KQLQuery, TranslationContext
+from .translator.translator import CypherToKQLTranslator, translate
 
 __all__ = [
-    "CypherTranslator",
+    "CypherToKQLTranslator",
+    "translate",
     "CypherQuery",
     "KQLQuery",
     "TranslationContext",

@@ -1,0 +1,557 @@
+# Default Sentinel Schema Mappings
+# Maps Cypher graph labels to Microsoft Sentinel tables and their properties
+
+version: "1.0.0"
+description: "Default schema mapping Cypher labels to Microsoft Sentinel tables"
+
+# Node type mappings: Cypher labels to Sentinel tables
+nodes:
+  User:
+    sentinel_table: IdentityInfo
+    properties:
+      user_id:
+        sentinel_field: AccountObjectId
+        type: string
+        required: true
+      username:
+        sentinel_field: AccountName
+        type: string
+        required: true
+      domain:
+        sentinel_field: AccountDomain
+        type: string
+        required: false
+      email:
+        sentinel_field: AccountUpn
+        type: string
+        required: false
+      risk_level:
+        sentinel_field: AccountRiskLevel
+        type: string
+        required: false
+
+  Device:
+    sentinel_table: DeviceInfo
+    properties:
+      device_id:
+        sentinel_field: DeviceId
+        type: string
+        required: true
+      device_name:
+        sentinel_field: DeviceName
+        type: string
+        required: true
+      os_platform:
+        sentinel_field: OSPlatform
+        type: string
+        required: false
+      ip_address:
+        sentinel_field: IPAddress
+        type: string
+        required: false
+      device_type:
+        sentinel_field: DeviceType
+        type: string
+        required: false
+
+  SecurityEvent:
+    sentinel_table: SecurityEvent
+    properties:
+      event_id:
+        sentinel_field: EventID
+        type: int
+        required: true
+      event_type:
+        sentinel_field: Activity
+        type: string
+        required: true
+      timestamp:
+        sentinel_field: TimeGenerated
+        type: datetime
+        required: true
+      source_ip:
+        sentinel_field: SourceIpAddr
+        type: string
+        required: false
+      account:
+        sentinel_field: Account
+        type: string
+        required: false
+      target_resources:
+        sentinel_field: TargetResources
+        type: string
+        required: false
+
+  IP:
+    sentinel_table: NetworkSession
+    properties:
+      ip_address:
+        sentinel_field: RemoteIp
+        type: string
+        required: true
+      port:
+        sentinel_field: RemotePort
+        type: int
+        required: false
+      protocol:
+        sentinel_field: Protocol
+        type: string
+        required: false
+      country:
+        sentinel_field: RemoteLocation
+        type: string
+        required: false
+
+  File:
+    sentinel_table: FileEvents
+    properties:
+      file_path:
+        sentinel_field: FilePath
+        type: string
+        required: true
+      file_name:
+        sentinel_field: FileName
+        type: string
+        required: true
+      file_size:
+        sentinel_field: FileSize
+        type: int
+        required: false
+      sha256:
+        sentinel_field: SHA256
+        type: string
+        required: false
+      sha1:
+        sentinel_field: SHA1
+        type: string
+        required: false
+      md5:
+        sentinel_field: MD5
+        type: string
+        required: false
+
+  Process:
+    sentinel_table: ProcessEvents
+    properties:
+      process_id:
+        sentinel_field: ProcessId
+        type: int
+        required: true
+      process_name:
+        sentinel_field: FileName
+        type: string
+        required: true
+      command_line:
+        sentinel_field: CommandLine
+        type: string
+        required: false
+      parent_process_id:
+        sentinel_field: ParentProcessId
+        type: int
+        required: false
+      creator_account:
+        sentinel_field: InitiatingProcessAccountName
+        type: string
+        required: false
+
+  Account:
+    sentinel_table: IdentityInfo
+    properties:
+      account_name:
+        sentinel_field: AccountName
+        type: string
+        required: true
+      account_domain:
+        sentinel_field: AccountDomain
+        type: string
+        required: false
+      account_sid:
+        sentinel_field: AccountSid
+        type: string
+        required: false
+
+  Credential:
+    sentinel_table: IdentityLogonEvents
+    properties:
+      credential_id:
+        sentinel_field: LogonId
+        type: string
+        required: true
+      logon_type:
+        sentinel_field: LogonType
+        type: string
+        required: false
+      success:
+        sentinel_field: LogonSuccess
+        type: bool
+        required: false
+
+  Network:
+    sentinel_table: NetworkSession
+    properties:
+      source_ip:
+        sentinel_field: SourceIp
+        type: string
+        required: true
+      destination_ip:
+        sentinel_field: RemoteIp
+        type: string
+        required: true
+      source_port:
+        sentinel_field: SourcePort
+        type: int
+        required: false
+      destination_port:
+        sentinel_field: RemotePort
+        type: int
+        required: false
+
+  Malware:
+    sentinel_table: DeviceEvents
+    properties:
+      malware_name:
+        sentinel_field: Title
+        type: string
+        required: true
+      malware_family:
+        sentinel_field: MalwareName
+        type: string
+        required: false
+      threat_level:
+        sentinel_field: Severity
+        type: string
+        required: false
+
+  Alert:
+    sentinel_table: AlertsTable
+    properties:
+      alert_id:
+        sentinel_field: AlertId
+        type: string
+        required: true
+      alert_title:
+        sentinel_field: Title
+        type: string
+        required: true
+      severity:
+        sentinel_field: Severity
+        type: string
+        required: false
+      status:
+        sentinel_field: Status
+        type: string
+        required: false
+
+  RegistryKey:
+    sentinel_table: DeviceRegistryEvents
+    properties:
+      registry_path:
+        sentinel_field: RegistryKey
+        type: string
+        required: true
+      registry_value_name:
+        sentinel_field: RegistryValueName
+        type: string
+        required: false
+      registry_value_data:
+        sentinel_field: RegistryValueData
+        type: string
+        required: false
+
+# Edge/Relationship mappings: Cypher relationships to translation rules
+edges:
+  LOGGED_IN:
+    description: "User logged into a device"
+    from_label: User
+    to_label: Device
+    sentinel_join:
+      left_table: IdentityInfo
+      right_table: DeviceInfo
+      join_condition: "IdentityInfo.AccountName == DeviceInfo.UserName"
+    strength: high
+    properties:
+      login_time:
+        type: datetime
+        required: false
+      logout_time:
+        type: datetime
+        required: false
+
+  OWNS:
+    description: "User owns or is responsible for a device"
+    from_label: User
+    to_label: Device
+    sentinel_join:
+      left_table: IdentityInfo
+      right_table: DeviceInfo
+      join_condition: "IdentityInfo.AccountName == DeviceInfo.ManagedBy"
+    strength: high
+    properties:
+      ownership_date:
+        type: datetime
+        required: false
+
+  ACCESSED:
+    description: "Entity accessed a file or resource"
+    from_label: User
+    to_label: File
+    sentinel_join:
+      left_table: IdentityInfo
+      right_table: FileEvents
+      join_condition: "IdentityInfo.AccountName == FileEvents.InitiatingProcessAccountName"
+    strength: high
+    properties:
+      access_time:
+        type: datetime
+        required: false
+      access_type:
+        type: string
+        required: false
+
+  EXECUTED:
+    description: "Process executed by an account or device"
+    from_label: User
+    to_label: Process
+    sentinel_join:
+      left_table: IdentityInfo
+      right_table: ProcessEvents
+      join_condition: "IdentityInfo.AccountName == ProcessEvents.InitiatingProcessAccountName"
+    strength: high
+    properties:
+      execution_time:
+        type: datetime
+        required: false
+
+  CONNECTED_TO:
+    description: "Device or process connected to an IP address"
+    from_label: Device
+    to_label: IP
+    sentinel_join:
+      left_table: DeviceInfo
+      right_table: NetworkSession
+      join_condition: "DeviceInfo.DeviceId == NetworkSession.DeviceId"
+    strength: high
+    properties:
+      connection_time:
+        type: datetime
+        required: false
+      bytes_sent:
+        type: int
+        required: false
+      bytes_received:
+        type: int
+        required: false
+
+  TRIGGERED:
+    description: "Event triggered an alert"
+    from_label: SecurityEvent
+    to_label: Alert
+    sentinel_join:
+      left_table: SecurityEvent
+      right_table: AlertsTable
+      join_condition: "SecurityEvent.EventID == AlertsTable.SourceEventId"
+    strength: medium
+    properties:
+      correlation_score:
+        type: float
+        required: false
+
+  CONTAINS_MALWARE:
+    description: "File contains malware"
+    from_label: File
+    to_label: Malware
+    sentinel_join:
+      left_table: FileEvents
+      right_table: DeviceEvents
+      join_condition: "FileEvents.SHA256 == DeviceEvents.FileHash"
+    strength: high
+    properties:
+      detection_time:
+        type: datetime
+        required: false
+
+  MODIFIED:
+    description: "Entity modified a registry key"
+    from_label: Process
+    to_label: RegistryKey
+    sentinel_join:
+      left_table: ProcessEvents
+      right_table: DeviceRegistryEvents
+      join_condition: "ProcessEvents.ProcessId == DeviceRegistryEvents.ProcessId"
+    strength: high
+    properties:
+      modification_time:
+        type: datetime
+        required: false
+
+  AUTHENTICATES:
+    description: "Credential used for authentication"
+    from_label: Account
+    to_label: Credential
+    sentinel_join:
+      left_table: IdentityInfo
+      right_table: IdentityLogonEvents
+      join_condition: "IdentityInfo.AccountName == IdentityLogonEvents.Account"
+    strength: high
+    properties:
+      auth_time:
+        type: datetime
+        required: false
+
+  ATTEMPTS_ACCESS:
+    description: "Entity attempts to access a resource"
+    from_label: Account
+    to_label: Device
+    sentinel_join:
+      left_table: IdentityInfo
+      right_table: DeviceInfo
+      join_condition: "IdentityInfo.AccountName == DeviceInfo.LastLoggedOnUser"
+    strength: medium
+    properties:
+      attempt_time:
+        type: datetime
+        required: false
+      success:
+        type: bool
+        required: false
+
+  COMMUNICATES_WITH:
+    description: "Network communication between entities"
+    from_label: IP
+    to_label: IP
+    sentinel_join:
+      left_table: NetworkSession
+      right_table: NetworkSession
+      join_condition: "NetworkSession.RemoteIp == NetworkSession.SourceIp"
+    strength: medium
+    properties:
+      protocol:
+        type: string
+        required: false
+      packet_count:
+        type: int
+        required: false
+
+  ASSOCIATED_WITH:
+    description: "Generic association between entities"
+    from_label: null
+    to_label: null
+    sentinel_join:
+      left_table: null
+      right_table: null
+      join_condition: null
+    strength: low
+    properties:
+      relationship_type:
+        type: string
+        required: false
+      confidence:
+        type: float
+        required: false
+
+# Sentinel tables metadata
+tables:
+  IdentityInfo:
+    description: "User and identity information"
+    retention_days: 30
+    fields:
+      - AccountObjectId
+      - AccountName
+      - AccountDomain
+      - AccountUpn
+      - AccountRiskLevel
+      - AccountSid
+
+  DeviceInfo:
+    description: "Device information and metadata"
+    retention_days: 30
+    fields:
+      - DeviceId
+      - DeviceName
+      - OSPlatform
+      - IPAddress
+      - DeviceType
+      - UserName
+      - ManagedBy
+      - LastLoggedOnUser
+
+  SecurityEvent:
+    description: "Security events and activities"
+    retention_days: 90
+    fields:
+      - EventID
+      - Activity
+      - TimeGenerated
+      - SourceIpAddr
+      - Account
+      - TargetResources
+
+  NetworkSession:
+    description: "Network connections and sessions"
+    retention_days: 30
+    fields:
+      - RemoteIp
+      - RemotePort
+      - Protocol
+      - RemoteLocation
+      - SourceIp
+      - SourcePort
+      - DeviceId
+
+  FileEvents:
+    description: "File system events and operations"
+    retention_days: 30
+    fields:
+      - FilePath
+      - FileName
+      - FileSize
+      - SHA256
+      - SHA1
+      - MD5
+      - InitiatingProcessAccountName
+
+  ProcessEvents:
+    description: "Process creation and execution events"
+    retention_days: 30
+    fields:
+      - ProcessId
+      - FileName
+      - CommandLine
+      - ParentProcessId
+      - InitiatingProcessAccountName
+
+  IdentityLogonEvents:
+    description: "Identity logon and authentication events"
+    retention_days: 30
+    fields:
+      - LogonId
+      - LogonType
+      - LogonSuccess
+      - Account
+
+  DeviceEvents:
+    description: "Device events including malware detections"
+    retention_days: 30
+    fields:
+      - Title
+      - MalwareName
+      - Severity
+
+  AlertsTable:
+    description: "Security alerts and incidents"
+    retention_days: 90
+    fields:
+      - AlertId
+      - Title
+      - Severity
+      - Status
+      - SourceEventId
+
+  DeviceRegistryEvents:
+    description: "Registry modification events"
+    retention_days: 30
+    fields:
+      - RegistryKey
+      - RegistryValueName
+      - RegistryValueData
+      - ProcessId
