@@ -5,32 +5,39 @@
 [![Status](https://img.shields.io/badge/Status-In%20Development-yellow)]()
 [![License](https://img.shields.io/badge/License-MIT-blue)]()
 
-## 🎯 Mission
+## Goal
 
-Build a production-grade **Cypher query engine** for Microsoft Sentinel Graph, enabling security analysts to investigate threats using graph query language.
+Enable security analysts to query Microsoft Sentinel security data using Cypher graph query language.
 
-## 🚀 Key Features
+## Current Implementation
 
-- **Native KQL Graph Operator Integration** - Leverages KQL's `make-graph`, `graph-match`, and `graph-shortest-paths`
-- **85% Direct Translation** - Straightforward Cypher → KQL graph operator mapping
-- **Agentic AI Enhancement** - Claude Agent SDK handles complex patterns (10% of queries)
-- **95-98% Feature Coverage** - Comprehensive Cypher support
-- **2-5x Performance** - Acceptable overhead with native optimization
-- **Security-First** - AST-based translation, authorization injection, comprehensive auditing
+- **Parser**: Converts Cypher queries to AST (MATCH, WHERE, RETURN clauses)
+- **Translator**: Generates KQL using native graph operators
+- **Schema Mapper**: Maps Cypher labels to Sentinel tables
+- **Testing**: Local integration tests passing, Sentinel tests not yet executed
 
-## 📊 Project Status
+## What Works
 
-**Phase**: Pre-Development
-**Team**: 2-3 engineers
-**Risk Level**: LOW-MEDIUM
-**Complexity**: MEDIUM
+- Basic Cypher query parsing (nodes, relationships, properties)
+- Translation to KQL graph-match syntax
+- WHERE clause conversion (operators, boolean logic)
+- RETURN clause conversion (projections, sorting, limits)
+- Local testing (35 integration tests passing)
 
-### Development Phases
+## What Hasn't Been Tested
 
-- [ ] **Phase 1**: Core Graph Operator Translation (Complexity: MEDIUM)
-- [ ] **Phase 2**: Performance Optimization & Persistent Graphs (Complexity: MEDIUM-HIGH)
-- [ ] **Phase 3**: Agentic AI Enhancement (Complexity: HIGH)
-- [ ] **Phase 4**: Production Hardening (Complexity: MEDIUM)
+- Execution against actual Azure Sentinel workspaces
+- Performance characteristics in production
+- AI-enhanced translation with Anthropic API
+- Complex multi-hop queries with actual data
+- Security controls with real tenant data
+
+## Status
+
+**Implementation**: Core translation pipeline functional
+**Testing**: Local tests passing, Azure integration tests created but not executed
+**Deployment**: Infrastructure defined, not deployed
+**Recommendation**: Run Sentinel integration tests before considering for use
 
 ## 🏗️ Architecture
 
@@ -109,15 +116,17 @@ pytest tests/
 python -m yellowstone translate "MATCH (u:User)-[:LOGGED_IN]->(d:Device) RETURN u, d"
 ```
 
-## 📈 Success Metrics
+## Test Results
 
-| Metric | Target | Status |
-|--------|--------|--------|
-| Query Coverage | 95-98% | 🔄 In Progress |
-| Performance (P95) | <3s | 🔄 In Progress |
-| AI Success Rate | >90% | 🔄 In Progress |
-| Security Audit | 0 critical | 🔄 Pending |
-| User Adoption | 100+ WAU | 🔄 Pending |
+| Component | Tests | Status |
+|-----------|-------|--------|
+| Parser | 64 | 95% passing |
+| Local Translation | 35 | 100% passing |
+| Schema Mapper | 54 | Not verified |
+| Optimizer | 53 | 98% passing |
+| **Sentinel Integration** | 13 | **Not yet run** |
+
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for details.
 
 ## 🤝 Contributing
 
