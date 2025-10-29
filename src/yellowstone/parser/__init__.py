@@ -28,6 +28,7 @@ from .ast_nodes import (
     NodePattern,
     RelationshipPattern,
     Property,
+    AliasedExpression,
     Identifier,
     Literal,
 )
@@ -53,6 +54,7 @@ __all__ = [
     "NodePattern",
     "RelationshipPattern",
     "Property",
+    "AliasedExpression",
     "Identifier",
     "Literal",
     # Visitor classes

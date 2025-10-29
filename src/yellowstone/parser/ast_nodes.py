@@ -88,6 +88,30 @@ class Property(BaseModel):
         return f"{self.variable}.{self.property_name}"
 
 
+class AliasedExpression(BaseModel):
+    """Represents an aliased expression (e.g., n.name AS userName).
+
+    Used in RETURN clauses to give expressions custom names.
+
+    Attributes:
+        expression: The expression being aliased (Identifier, Property, etc.)
+        alias: The alias name
+
+    Example:
+        >>> AliasedExpression(
+        ...     expression=Property(variable=Identifier('n'), property_name=Identifier('name')),
+        ...     alias=Identifier('userName')
+        ... )
+    """
+
+    expression: Any = Field(description="The expression being aliased")
+    alias: Identifier = Field(description="The alias name")
+
+    def __str__(self) -> str:
+        """Return string representation."""
+        return f"{self.expression} AS {self.alias}"
+
+
 class RelationshipPattern(BaseModel):
     """Represents a relationship pattern in a Cypher query.
 

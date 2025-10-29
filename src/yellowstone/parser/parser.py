@@ -26,6 +26,7 @@ from .ast_nodes import (
     NodePattern,
     RelationshipPattern,
     Property,
+    AliasedExpression,
     Identifier,
     Literal,
 )
@@ -653,10 +654,15 @@ class CypherParser:
         )
 
     def parse_return_item(self) -> Any:
-        """Parse a single return item (identifier or property).
+        """Parse a single return item (identifier, property, or aliased expression).
+
+        Supports:
+            - Simple identifiers: n
+            - Property access: n.name
+            - Aliases: n.name AS userName
 
         Returns:
-            An Identifier or Property node
+            An Identifier, Property, or AliasedExpression node
         """
         if not self.lexer.peek() or self.lexer.peek().type != "IDENTIFIER":
             raise SyntaxError("Expected identifier in RETURN clause")
@@ -665,14 +671,23 @@ class CypherParser:
         variable = Identifier(name=variable_name)
 
         # Check for property access
+        expression = variable
         if self.lexer.peek() and self.lexer.peek().type == "DOT":
             self.lexer.consume()  # Consume dot
             if not self.lexer.peek() or self.lexer.peek().type != "IDENTIFIER":
                 raise SyntaxError("Expected property name after '.'")
             property_name = Identifier(name=self.lexer.consume().value)
-            return Property(variable=variable, property_name=property_name)
+            expression = Property(variable=variable, property_name=property_name)
 
-        return variable
+        # Check for AS alias
+        if self.lexer.peek() and self.lexer.match_keyword("AS"):
+            self.lexer.consume()  # Consume AS
+            if not self.lexer.peek() or self.lexer.peek().type != "IDENTIFIER":
+                raise SyntaxError("Expected alias name after 'AS'")
+            alias = Identifier(name=self.lexer.consume().value)
+            return AliasedExpression(expression=expression, alias=alias)
+
+        return expression
 
     def parse_order_by(self) -> list[dict[str, Any]]:
         """Parse ORDER BY clause items.

@@ -164,26 +164,123 @@ class CypherTranslator:
             cypher: Original Cypher query
 
         Returns:
-            KQL query string
+            KQL query string with proper make-graph preamble
         """
         kql_parts = []
 
-        # Step 1: Translate MATCH clause to graph-match
-        match_kql = self.graph_match_translator.translate(ast.match_clause)
-        kql_parts.append(match_kql)
+        # Step 1: Generate make-graph preamble with proper table references
+        make_graph_kql = self._generate_make_graph_preamble(ast.match_clause)
+        if make_graph_kql:
+            kql_parts.append(make_graph_kql)
 
-        # Step 2: Translate WHERE clause if present
+        # Step 2: Translate MATCH clause to graph-match pattern
+        match_kql = self.graph_match_translator.translate(ast.match_clause)
+        kql_parts.append(f"| {match_kql}")
+
+        # Step 3: Translate WHERE clause if present
         if ast.where_clause:
             where_kql = self.where_clause_translator.translate(ast.where_clause.conditions)
             if where_kql:
                 kql_parts.append(f"| where {where_kql}")
 
-        # Step 3: Translate RETURN clause
+        # Step 4: Translate RETURN clause
         return_kql = self.return_clause_translator.translate(ast.return_clause)
         kql_parts.append(f"| {return_kql}")
 
         # Combine all parts
         return "\n".join(kql_parts)
+
+    def _generate_make_graph_preamble(self, match_clause) -> str:
+        """
+        Generate KQL make-graph preamble from MATCH clause.
+
+        Extracts all node labels from the MATCH clause and generates the appropriate
+        Sentinel table references with make-graph statements.
+
+        Args:
+            match_clause: MatchClause AST node
+
+        Returns:
+            KQL make-graph preamble string, or empty string if no tables found
+
+        Example:
+            For MATCH (n:User) returns:
+            "IdentityInfo\n| make-graph AccountObjectId with_node_id=AccountObjectId"
+        """
+        # Extract all unique labels from all paths
+        labels = set()
+        for path in match_clause.paths:
+            for node in path.nodes:
+                if node.labels:
+                    for label in node.labels:
+                        labels.add(str(label))
+
+        if not labels:
+            # No labels specified, cannot generate make-graph
+            return ""
+
+        # Map labels to Sentinel tables
+        tables_info = {}
+        for label in labels:
+            table = self.schema_mapper.get_sentinel_table(label)
+            if table:
+                # Get the primary key field for this table
+                # For now, use the first required property's sentinel_field as node_id
+                props = self.schema_mapper.get_all_properties(label)
+                node_id_field = None
+                for prop_name, prop_info in props.items():
+                    if prop_info.get("required") and "id" in prop_name.lower():
+                        node_id_field = prop_info["sentinel_field"]
+                        break
+
+                # If no ID field found, use the first required field
+                if not node_id_field:
+                    for prop_name, prop_info in props.items():
+                        if prop_info.get("required"):
+                            node_id_field = prop_info["sentinel_field"]
+                            break
+
+                # Default fallback for common tables
+                if not node_id_field:
+                    if table == "IdentityInfo":
+                        node_id_field = "AccountObjectId"
+                    elif table == "DeviceInfo":
+                        node_id_field = "DeviceId"
+                    elif table == "SecurityEvent":
+                        node_id_field = "EventID"
+                    elif table == "ProcessEvents":
+                        node_id_field = "ProcessId"
+                    elif table == "FileEvents":
+                        node_id_field = "SHA256"
+                    else:
+                        # Generic fallback - use first field
+                        fields = self.schema_mapper.get_table_fields(table)
+                        if fields:
+                            node_id_field = fields[0]
+
+                if node_id_field:
+                    tables_info[table] = node_id_field
+
+        if not tables_info:
+            return ""
+
+        # Generate make-graph statement
+        # For single table: TableName | make-graph NodeId with_node_id=NodeId
+        # For multiple tables: Use first table as base, then join others
+        table_names = list(tables_info.keys())
+        primary_table = table_names[0]
+        primary_node_id = tables_info[primary_table]
+
+        make_graph_parts = [
+            f"{primary_table}",
+            f"| make-graph {primary_node_id} with_node_id={primary_node_id}"
+        ]
+
+        # If multiple tables, we need to handle relationships
+        # For now, just use the primary table (multi-table support will be added later)
+        # TODO: Add proper join logic for multi-table queries
+
+        return "\n".join(make_graph_parts)
 
     def validate(self, kql: KQLQuery) -> bool:
         """
