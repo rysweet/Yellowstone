@@ -8,6 +8,7 @@ management, including graph lifecycle, snapshots, versioning, and error handling
 import pytest
 from datetime import datetime, timedelta
 from uuid import uuid4
+from unittest.mock import Mock
 
 from yellowstone.persistent_graph import (
     GraphManager,
@@ -115,9 +116,36 @@ def complex_schema():
 
 
 @pytest.fixture
-def graph_manager(workspace_id):
-    """Graph manager instance."""
-    return GraphManager(workspace_id)
+def mock_sentinel_client():
+    """Mock Sentinel API client for testing."""
+    client = Mock()
+
+    # Mock execute_management_command
+    client.execute_management_command.return_value = {
+        'status': 'success',
+        'command': 'mocked',
+        'execution_time_ms': 100,
+    }
+
+    # Mock execute_kql
+    client.execute_kql.return_value = {
+        'status': 'success',
+        'columns': ['node_id', 'node_label', 'properties'],
+        'rows': [
+            ['n1', 'Alert', {'severity': 'high'}],
+            ['n2', 'User', {'name': 'alice'}],
+        ],
+        'row_count': 2,
+        'execution_time_ms': 45,
+    }
+
+    return client
+
+
+@pytest.fixture
+def graph_manager(workspace_id, mock_sentinel_client):
+    """Graph manager instance with mocked Sentinel client."""
+    return GraphManager(workspace_id, api_client=mock_sentinel_client)
 
 
 @pytest.fixture

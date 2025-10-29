@@ -111,7 +111,8 @@ class WhereClauseTranslator:
         """Translate logical expression (AND, OR, NOT).
 
         Args:
-            condition: Logical condition with 'operator' and 'operands'
+            condition: Logical condition with 'operator' and either 'operands' (list)
+                      or 'left'/'right' (binary format)
 
         Returns:
             KQL logical expression (e.g., "n.name == 'John' and m.age > 30")
@@ -119,15 +120,23 @@ class WhereClauseTranslator:
         Raises:
             KeyError: If required fields are missing
         """
-        if "operator" not in condition or "operands" not in condition:
-            raise KeyError("Logical condition requires 'operator' and 'operands' fields")
+        if "operator" not in condition:
+            raise KeyError("Logical condition requires 'operator' field")
 
         operator = condition["operator"].upper()
         kql_operator = self.operator_mapping.get(operator, operator.lower())
 
-        operands = condition["operands"]
-        if not isinstance(operands, list) or len(operands) == 0:
-            raise ValueError("Logical condition operands must be non-empty list")
+        # Handle both formats: operands list or left/right binary
+        operands = []
+        if "operands" in condition:
+            operands = condition["operands"]
+            if not isinstance(operands, list) or len(operands) == 0:
+                raise ValueError("Logical condition operands must be non-empty list")
+        elif "left" in condition and "right" in condition:
+            # Binary format from parser (left, right)
+            operands = [condition["left"], condition["right"]]
+        else:
+            raise KeyError("Logical condition requires either 'operands' or 'left'/'right' fields")
 
         # Handle NOT specially (unary operator)
         if operator == "NOT":

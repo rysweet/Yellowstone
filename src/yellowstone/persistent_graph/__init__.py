@@ -27,9 +27,17 @@ Example:
 """
 
 # Core management classes
-from .graph_manager import GraphManager, MockSentinelAPI
+from .graph_manager import GraphManager
 from .graph_builder import GraphBuilder
 from .snapshot_manager import SnapshotManager
+from .sentinel_client import (
+    SentinelClient,
+    SentinelConfig,
+    SentinelAPIError,
+    AuthenticationError,
+    QueryExecutionError,
+    WorkspaceNotFoundError,
+)
 
 # Data models
 from .models import (
@@ -56,7 +64,14 @@ __all__ = [
     'GraphManager',
     'GraphBuilder',
     'SnapshotManager',
-    'MockSentinelAPI',
+
+    # Azure Sentinel integration
+    'SentinelClient',
+    'SentinelConfig',
+    'SentinelAPIError',
+    'AuthenticationError',
+    'QueryExecutionError',
+    'WorkspaceNotFoundError',
 
     # Graph models
     'PersistentGraph',

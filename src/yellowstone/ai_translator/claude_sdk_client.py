@@ -15,6 +15,8 @@ import os
 import time
 from typing import AsyncIterator, Dict, List, Optional
 
+from anthropic import AsyncAnthropic, APIError, RateLimitError, AuthenticationError, APIConnectionError
+
 from .models import ClaudeAPIRequest, ClaudeAPIResponse
 
 logger = logging.getLogger(__name__)
@@ -82,7 +84,7 @@ Examples:
         base_delay: float = 1.0,
         max_delay: float = 60.0,
         timeout: float = 30.0,
-        mock_mode: bool = True,
+        mock_mode: bool = False,
     ):
         """Initialize Claude SDK client.
 
@@ -106,6 +108,11 @@ Examples:
         if not mock_mode and not self.api_key:
             logger.warning("No API key provided, falling back to mock mode")
             self.mock_mode = True
+
+        # Initialize Anthropic client only when not in mock mode
+        self._client = None
+        if not self.mock_mode:
+            self._client = AsyncAnthropic(api_key=self.api_key, timeout=self.timeout)
 
         self._call_count = 0
         self._error_count = 0
@@ -274,9 +281,95 @@ Examples:
             ClaudeAPIError: If API call fails
             ClaudeRateLimitError: If rate limited
         """
-        # This would be the actual API call implementation
-        # For now, this is a placeholder that should never be called in mock mode
-        raise NotImplementedError("Real API calls not implemented - use mock_mode=True")
+        if not self._client:
+            raise ClaudeSDKError("Client not initialized - check API key or use mock_mode=True")
+
+        try:
+            # Use system prompt from request or default
+            system_prompt = request.system or self.SYSTEM_PROMPT
+
+            # Make API call
+            message = await self._client.messages.create(
+                model=self.model,
+                max_tokens=request.max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": request.prompt}],
+                temperature=request.temperature,
+            )
+
+            # Update statistics
+            self._call_count += 1
+            self._total_tokens += message.usage.input_tokens + message.usage.output_tokens
+
+            # Extract text content from response
+            content = ""
+            if message.content:
+                # Handle both single content blocks and lists
+                if isinstance(message.content, list):
+                    content = "".join(
+                        block.text for block in message.content
+                        if hasattr(block, 'text')
+                    )
+                else:
+                    content = message.content
+
+            return ClaudeAPIResponse(
+                content=content,
+                stop_reason=message.stop_reason,
+                usage={
+                    "input_tokens": message.usage.input_tokens,
+                    "output_tokens": message.usage.output_tokens,
+                },
+                model=message.model,
+                metadata={"call_count": self._call_count},
+            )
+
+        except RateLimitError as e:
+            # Extract retry-after header if available
+            retry_after = None
+            if hasattr(e, 'response') and e.response:
+                retry_after = e.response.headers.get('retry-after')
+                if retry_after:
+                    try:
+                        retry_after = float(retry_after)
+                    except (ValueError, TypeError):
+                        retry_after = None
+
+            logger.warning(f"Rate limit error: {str(e)}")
+            raise ClaudeRateLimitError(
+                f"Rate limit exceeded: {str(e)}",
+                retry_after=retry_after
+            )
+
+        except AuthenticationError as e:
+            logger.error(f"Authentication error: {str(e)}")
+            raise ClaudeAPIError(
+                f"Authentication failed - check API key: {str(e)}",
+                status_code=401
+            )
+
+        except APIConnectionError as e:
+            logger.error(f"Network connection error: {str(e)}")
+            raise ClaudeAPIError(
+                f"Network connection failed: {str(e)}",
+                status_code=None
+            )
+
+        except APIError as e:
+            # Handle other API errors
+            status_code = None
+            if hasattr(e, 'status_code'):
+                status_code = e.status_code
+
+            logger.error(f"API error: {str(e)} (status: {status_code})")
+            raise ClaudeAPIError(
+                f"API error: {str(e)}",
+                status_code=status_code
+            )
+
+        except Exception as e:
+            logger.error(f"Unexpected error in API call: {str(e)}")
+            raise ClaudeSDKError(f"Unexpected error: {str(e)}")
 
     async def _stream_api(self, request: ClaudeAPIRequest) -> AsyncIterator[ClaudeAPIResponse]:
         """Stream API response from Claude.
@@ -290,9 +383,102 @@ Examples:
         Raises:
             ClaudeAPIError: If API call fails
         """
-        # This would be the actual streaming API implementation
-        raise NotImplementedError("Real streaming API not implemented - use mock_mode=True")
-        yield  # Make this a generator
+        if not self._client:
+            raise ClaudeSDKError("Client not initialized - check API key or use mock_mode=True")
+
+        try:
+            # Use system prompt from request or default
+            system_prompt = request.system or self.SYSTEM_PROMPT
+
+            # Track tokens for final response
+            input_tokens = 0
+            output_tokens = 0
+            accumulated_content = ""
+
+            # Stream API call
+            async with self._client.messages.stream(
+                model=self.model,
+                max_tokens=request.max_tokens,
+                system=system_prompt,
+                messages=[{"role": "user", "content": request.prompt}],
+                temperature=request.temperature,
+            ) as stream:
+                # Yield partial responses as text arrives
+                async for text in stream.text_stream:
+                    accumulated_content += text
+                    yield ClaudeAPIResponse(
+                        content=accumulated_content,
+                        stop_reason=None,  # Not finished yet
+                        usage={"input_tokens": 0, "output_tokens": 0},  # Will be updated in final
+                        model=self.model,
+                        metadata={"streaming": True, "partial": True},
+                    )
+
+                # Get final message with complete usage info
+                final_message = await stream.get_final_message()
+
+                # Update statistics
+                self._call_count += 1
+                self._total_tokens += final_message.usage.input_tokens + final_message.usage.output_tokens
+
+                # Yield final complete response
+                yield ClaudeAPIResponse(
+                    content=accumulated_content,
+                    stop_reason=final_message.stop_reason,
+                    usage={
+                        "input_tokens": final_message.usage.input_tokens,
+                        "output_tokens": final_message.usage.output_tokens,
+                    },
+                    model=final_message.model,
+                    metadata={"streaming": True, "partial": False, "call_count": self._call_count},
+                )
+
+        except RateLimitError as e:
+            # Extract retry-after header if available
+            retry_after = None
+            if hasattr(e, 'response') and e.response:
+                retry_after = e.response.headers.get('retry-after')
+                if retry_after:
+                    try:
+                        retry_after = float(retry_after)
+                    except (ValueError, TypeError):
+                        retry_after = None
+
+            logger.warning(f"Rate limit error during streaming: {str(e)}")
+            raise ClaudeRateLimitError(
+                f"Rate limit exceeded: {str(e)}",
+                retry_after=retry_after
+            )
+
+        except AuthenticationError as e:
+            logger.error(f"Authentication error during streaming: {str(e)}")
+            raise ClaudeAPIError(
+                f"Authentication failed - check API key: {str(e)}",
+                status_code=401
+            )
+
+        except APIConnectionError as e:
+            logger.error(f"Network connection error during streaming: {str(e)}")
+            raise ClaudeAPIError(
+                f"Network connection failed: {str(e)}",
+                status_code=None
+            )
+
+        except APIError as e:
+            # Handle other API errors
+            status_code = None
+            if hasattr(e, 'status_code'):
+                status_code = e.status_code
+
+            logger.error(f"API error during streaming: {str(e)} (status: {status_code})")
+            raise ClaudeAPIError(
+                f"API error: {str(e)}",
+                status_code=status_code
+            )
+
+        except Exception as e:
+            logger.error(f"Unexpected error during streaming: {str(e)}")
+            raise ClaudeSDKError(f"Unexpected error: {str(e)}")
 
     async def _mock_translate(self, request: ClaudeAPIRequest) -> ClaudeAPIResponse:
         """Mock translation for testing without API calls.

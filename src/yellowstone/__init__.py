@@ -10,6 +10,7 @@ __author__ = "Ryan Sweet"
 
 from .models import CypherQuery, KQLQuery, TranslationContext
 from .translator.translator import CypherToKQLTranslator, translate
+from .main_translator import CypherTranslator, TranslationError
 
 __all__ = [
     "CypherToKQLTranslator",
@@ -17,4 +18,6 @@ __all__ = [
     "CypherQuery",
     "KQLQuery",
     "TranslationContext",
+    "CypherTranslator",
+    "TranslationError",
 ]

@@ -19,25 +19,48 @@ from .models import (
 )
 from .graph_builder import GraphBuilder
 from .snapshot_manager import SnapshotManager, SnapshotType
+from .sentinel_client import SentinelClient
 
 
 class GraphManager:
     """Manager for persistent graph lifecycle operations."""
 
-    def __init__(self, workspace_id: str, api_client: Optional[Any] = None):
+    def __init__(self, workspace_id: str, credential: Optional[Any] = None, api_client: Optional[Any] = None):
         """
-        Initialize graph manager.
+        Initialize graph manager with real Azure Sentinel integration.
 
         Args:
-            workspace_id: Microsoft Sentinel workspace ID
-            api_client: Optional Azure API client (mocked if not provided)
+            workspace_id: Microsoft Sentinel workspace ID (required)
+            credential: Azure credential for authentication (uses DefaultAzureCredential if None)
+            api_client: Optional Azure API client for testing (creates real SentinelClient if not provided)
+
+        Raises:
+            ValueError: If workspace_id is empty
+            AuthenticationError: If credential initialization fails
 
         Example:
-            >>> manager = GraphManager(workspace_id='ws-12345')
+            >>> from azure.identity import DefaultAzureCredential
+            >>> credential = DefaultAzureCredential()
+            >>> manager = GraphManager(
+            ...     workspace_id='your-workspace-id',
+            ...     credential=credential
+            ... )
             >>> graph = manager.create_graph('SecurityGraph', schema)
         """
+        if not workspace_id or not workspace_id.strip():
+            raise ValueError("workspace_id is required and cannot be empty")
+
         self.workspace_id = workspace_id
-        self.api_client = api_client or MockSentinelAPI()
+
+        # Create real Sentinel client if not provided
+        if api_client is None:
+            self.api_client = SentinelClient(
+                workspace_id=workspace_id,
+                credential=credential
+            )
+        else:
+            self.api_client = api_client
+
         self.snapshot_manager = SnapshotManager(workspace_id)
 
         # In-memory storage (in production, this would be persistent)
@@ -104,8 +127,12 @@ class GraphManager:
             # Build KQL statement
             kql = builder.build_create_statement()
 
-            # Execute via API (mocked)
-            self.api_client.execute_management_command(kql)
+            # Execute via real Sentinel API
+            result = self.api_client.execute_management_command(kql)
+
+            # Check for errors
+            if result.get('status') != 'success':
+                raise ValueError(f"Graph creation failed: {result.get('message', 'Unknown error')}")
 
             # Store graph
             self._graphs[name] = graph
@@ -220,8 +247,12 @@ class GraphManager:
             # Build update statement
             kql = builder.build_update_statement(changes)
 
-            # Execute via API (mocked)
-            self.api_client.execute_management_command(kql)
+            # Execute via real Sentinel API
+            result = self.api_client.execute_management_command(kql)
+
+            # Check for errors
+            if result.get('status') != 'success':
+                raise ValueError(f"Graph update failed: {result.get('message', 'Unknown error')}")
 
             # Update status
             graph.update_status(GraphStatus.ACTIVE)
@@ -286,8 +317,12 @@ class GraphManager:
             builder = GraphBuilder(graph)
             kql = builder.build_delete_statement()
 
-            # Execute via API (mocked)
-            self.api_client.execute_management_command(kql)
+            # Execute via real Sentinel API
+            result = self.api_client.execute_management_command(kql)
+
+            # Check for errors
+            if result.get('status') != 'success':
+                raise ValueError(f"Graph deletion failed: {result.get('message', 'Unknown error')}")
 
             # Update status
             graph.update_status(GraphStatus.DELETED)
@@ -435,10 +470,10 @@ class GraphManager:
                 f"Graph '{graph_name}' is not active (status: {graph.status})"
             )
 
-        # Execute query via API (mocked)
+        # Execute query via real Sentinel API
         start_time = datetime.utcnow()
-        results = self.api_client.execute_query(kql_query, parameters)
-        execution_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+        results = self.api_client.execute_kql(kql_query)
+        execution_time = results.get('execution_time_ms', 0)
 
         # Update metrics
         self._update_query_metrics(graph_name, execution_time)
@@ -494,8 +529,12 @@ class GraphManager:
             builder = GraphBuilder(graph)
             kql = builder.build_create_statement()
 
-            # Execute via API (mocked)
-            self.api_client.execute_management_command(kql)
+            # Execute via real Sentinel API
+            result = self.api_client.execute_management_command(kql)
+
+            # Check for errors
+            if result.get('status') != 'success':
+                raise ValueError(f"Graph refresh failed: {result.get('message', 'Unknown error')}")
 
             # Update timestamp
             graph.updated_at = datetime.utcnow()
@@ -622,50 +661,3 @@ class GraphManager:
         operations.sort(key=lambda op: op.started_at, reverse=True)
 
         return operations
-
-
-class MockSentinelAPI:
-    """Mock Sentinel API for testing without Azure connection."""
-
-    def execute_management_command(self, kql: str) -> Dict[str, Any]:
-        """
-        Mock execution of management command.
-
-        Args:
-            kql: KQL command to execute
-
-        Returns:
-            Mock response
-        """
-        # Simulate API call
-        return {
-            'status': 'success',
-            'command': kql[:100],
-            'execution_time_ms': 150,
-        }
-
-    def execute_query(
-        self,
-        kql: str,
-        parameters: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """
-        Mock execution of query.
-
-        Args:
-            kql: KQL query to execute
-            parameters: Query parameters
-
-        Returns:
-            Mock results
-        """
-        # Simulate query execution
-        return {
-            'columns': ['node_id', 'node_label', 'properties'],
-            'rows': [
-                ['n1', 'Alert', {'severity': 'high'}],
-                ['n2', 'User', {'name': 'alice'}],
-            ],
-            'row_count': 2,
-            'execution_time_ms': 45,
-        }

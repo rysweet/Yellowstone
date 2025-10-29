@@ -234,7 +234,9 @@ class ReturnClauseTranslator:
         """Translate order by specification to KQL sort clause.
 
         Args:
-            order_by_items: List of order by specifications, each with 'item' and 'direction'
+            order_by_items: List of order by specifications, each with either:
+                           - 'item' and 'direction' (explicit format)
+                           - 'expression' and 'direction' (parser format)
 
         Returns:
             KQL sort clause (e.g., "sort by n.age desc, m.name asc")
@@ -253,18 +255,21 @@ class ReturnClauseTranslator:
             if not isinstance(order_spec, dict):
                 raise ValueError("Each order_by item must be a dictionary")
 
-            if "item" not in order_spec:
-                raise KeyError("Order by item requires 'item' field")
+            # Support both 'item' and 'expression' fields (parser uses 'expression')
+            if "item" in order_spec:
+                item = order_spec["item"]
+                item_str = self._translate_return_item(item)
+            elif "expression" in order_spec:
+                # Parser format: expression is already a string like "n.name"
+                item_str = order_spec["expression"]
+            else:
+                raise KeyError("Order by item requires either 'item' or 'expression' field")
 
-            item = order_spec["item"]
             direction = order_spec.get("direction", "asc").lower()
 
             # Validate direction
             if direction not in ("asc", "desc"):
                 raise ValueError(f"Invalid sort direction: {direction}")
-
-            # Translate the item
-            item_str = self._translate_return_item(item)
 
             # Add to sort parts
             if direction == "desc":
