@@ -1,0 +1,730 @@
+openapi: 3.0.0
+info:
+  title: Agentic AI Translation Layer API
+  version: 1.0.0
+  description: |
+    AI-powered Cypher-to-KQL translation service for complex patterns that cannot be
+    directly translated by rule-based translators. Uses Claude Agent SDK for semantic
+    understanding, goal-seeking optimization, and iterative refinement.
+
+    ## Architecture Position
+    This API handles the 10% of Cypher queries that:
+    - Have complex semantic patterns without direct KQL mappings
+    - Require optimization decisions based on data characteristics
+    - Need iterative refinement with validation
+    - Involve ambiguous intent or edge cases
+
+    ## Integration Points
+    - **Input**: Complex Cypher AST from query router
+    - **Context**: Sentinel schema, cardinality statistics, query history
+    - **Output**: Optimized KQL query with confidence score and explanation
+    - **Fallback**: Falls back to join-based translation if AI translation fails
+
+servers:
+  - url: https://api.cypher-sentinel.azure.com/v1
+    description: Production API
+
+paths:
+  /translate/agentic:
+    post:
+      summary: Translate complex Cypher pattern using AI agent
+      description: |
+        Primary endpoint for AI-assisted translation. Accepts complex Cypher patterns
+        and returns optimized KQL using Claude Agent SDK's goal-seeking capabilities.
+
+        Includes semantic validation, performance optimization hints, and confidence scoring.
+      operationId: translateComplex
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslationRequest'
+            examples:
+              indirectAccess:
+                summary: Indirect access pattern with negation
+                value:
+                  cypher: |
+                    MATCH path = (u:User)-[:PERMISSION|:GROUP_MEMBER*]->
+                                 (r:Resource {classification: "secret"})
+                    WHERE NOT (u)-[:DIRECT_PERMISSION]->(r)
+                    RETURN u.name, length(path) as depth
+                    ORDER BY depth
+                  context:
+                    schema_version: "1.2.0"
+                    max_depth: 5
+                    performance_profile: "interactive"
+                  options:
+                    optimization_goal: "latency"
+                    max_iterations: 3
+                    confidence_threshold: 0.85
+      responses:
+        '200':
+          description: Translation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationResponse'
+              examples:
+                success:
+                  value:
+                    translation_id: "tr_a1b2c3d4"
+                    status: "success"
+                    kql_query: |
+                      let G = Users | make-graph UserId --> ResourceId with Permissions;
+                      let IndirectPaths = G | graph-match (u)-[path*2..5]->(r)
+                        where r.Classification == "secret"
+                        project UserId = u.Id, ResourceId = r.Id;
+                      IndirectPaths
+                      | join kind=leftanti (DirectPermissions) on UserId, ResourceId
+                      | order by array_length(path) asc
+                    confidence: 0.92
+                    strategy: "graph_operators_with_exclusion"
+                    estimated_performance:
+                      execution_time_ms: 1500
+                      result_cardinality: 250
+                    validation:
+                      syntax_valid: true
+                      semantically_equivalent: true
+                      safety_checks_passed: true
+                    explanation: |
+                      Translated to graph operators with indirect path matching (depth 2-5).
+                      Used leftanti join to exclude direct permissions efficiently.
+                      Estimated 1.5s execution on typical dataset.
+                    alternatives:
+                      - strategy: "join_based_recursive"
+                        confidence: 0.78
+                        tradeoff: "More verbose but deterministic performance"
+        '202':
+          description: Translation in progress (async mode)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationJob'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Untranslatable pattern
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationFailure'
+
+  /translate/agentic/batch:
+    post:
+      summary: Batch translate multiple queries
+      description: |
+        Translate multiple queries in parallel. Useful for preprocessing a workload
+        or testing translation coverage.
+      operationId: batchTranslate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - queries
+              properties:
+                queries:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/TranslationRequest'
+                  maxItems: 50
+                options:
+                  $ref: '#/components/schemas/BatchOptions'
+      responses:
+        '200':
+          description: Batch translation results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch_id:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TranslationResponse'
+                  summary:
+                    $ref: '#/components/schemas/BatchSummary'
+
+  /translate/agentic/{translation_id}:
+    get:
+      summary: Get translation job status
+      description: Poll for async translation job status and results
+      operationId: getTranslationStatus
+      parameters:
+        - name: translation_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslationJob'
+
+  /translate/validate:
+    post:
+      summary: Validate semantic equivalence
+      description: |
+        Validate that a KQL translation is semantically equivalent to the original
+        Cypher query. Uses AI reasoning to check correctness.
+      operationId: validateTranslation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cypher
+                - kql
+              properties:
+                cypher:
+                  type: string
+                kql:
+                  type: string
+                context:
+                  $ref: '#/components/schemas/TranslationContext'
+      responses:
+        '200':
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResult'
+
+  /translate/optimize:
+    post:
+      summary: Optimize existing KQL translation
+      description: |
+        Take an existing KQL query (possibly from direct translator) and optimize
+        it using AI insights about data distribution and query patterns.
+      operationId: optimizeQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - kql
+              properties:
+                kql:
+                  type: string
+                cypher:
+                  type: string
+                  description: Original Cypher for context (optional)
+                context:
+                  $ref: '#/components/schemas/TranslationContext'
+                optimization_goals:
+                  type: array
+                  items:
+                    type: string
+                    enum: [latency, throughput, cost, accuracy]
+      responses:
+        '200':
+          description: Optimized query
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  original_kql:
+                    type: string
+                  optimized_kql:
+                    type: string
+                  improvements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Optimization'
+                  estimated_speedup:
+                    type: number
+
+  /learning/feedback:
+    post:
+      summary: Submit translation feedback
+      description: |
+        Provide feedback on translation quality to improve future translations.
+        Used to build pattern cache and refine translation strategies.
+      operationId: submitFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslationFeedback'
+      responses:
+        '204':
+          description: Feedback accepted
+
+  /learning/patterns:
+    get:
+      summary: Get cached translation patterns
+      description: |
+        Retrieve successful translation patterns from cache. Used for warming up
+        new instances or analyzing translation coverage.
+      operationId: getPatternCache
+      parameters:
+        - name: pattern_type
+          in: query
+          schema:
+            type: string
+            enum: [graph_operators, join_based, hybrid]
+        - name: min_confidence
+          in: query
+          schema:
+            type: number
+            minimum: 0.0
+            maximum: 1.0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Cached patterns
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  patterns:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CachedPattern'
+
+  /agent/context:
+    post:
+      summary: Update agent context
+      description: |
+        Update schema metadata, statistics, or other context used by the AI agent.
+        Called when Sentinel schema changes or new statistics are available.
+      operationId: updateContext
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextUpdate'
+      responses:
+        '204':
+          description: Context updated
+
+  /health:
+    get:
+      summary: Health check
+      description: Check API and Claude Agent SDK availability
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  agent_sdk_status:
+                    type: string
+                  cache_size:
+                    type: integer
+                  version:
+                    type: string
+
+components:
+  schemas:
+    TranslationRequest:
+      type: object
+      required:
+        - cypher
+        - context
+      properties:
+        cypher:
+          type: string
+          description: Cypher query to translate
+        context:
+          $ref: '#/components/schemas/TranslationContext'
+        options:
+          $ref: '#/components/schemas/TranslationOptions'
+
+    TranslationContext:
+      type: object
+      required:
+        - schema_version
+      properties:
+        schema_version:
+          type: string
+          description: Sentinel schema version for mapping
+        schema_metadata:
+          type: object
+          description: Node/edge type definitions and cardinalities
+          additionalProperties:
+            $ref: '#/components/schemas/SchemaEntity'
+        query_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoricalQuery'
+          maxItems: 10
+        max_depth:
+          type: integer
+          description: Maximum traversal depth for variable-length paths
+          default: 5
+        performance_profile:
+          type: string
+          enum: [interactive, batch, report]
+          default: interactive
+        user_preferences:
+          type: object
+          description: User-specific preferences or hints
+
+    SchemaEntity:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [node, edge]
+        table_name:
+          type: string
+        cardinality:
+          type: integer
+        average_degree:
+          type: number
+        indexed_fields:
+          type: array
+          items:
+            type: string
+        properties:
+          type: object
+          additionalProperties:
+            type: string
+
+    HistoricalQuery:
+      type: object
+      properties:
+        cypher:
+          type: string
+        kql:
+          type: string
+        execution_time_ms:
+          type: number
+        result_count:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    TranslationOptions:
+      type: object
+      properties:
+        optimization_goal:
+          type: string
+          enum: [latency, throughput, cost, accuracy]
+          default: latency
+        max_iterations:
+          type: integer
+          description: Max AI refinement iterations
+          default: 3
+          minimum: 1
+          maximum: 10
+        confidence_threshold:
+          type: number
+          description: Minimum confidence to return result
+          default: 0.8
+          minimum: 0.0
+          maximum: 1.0
+        enable_caching:
+          type: boolean
+          default: true
+        async_mode:
+          type: boolean
+          description: Return immediately with job ID
+          default: false
+        include_alternatives:
+          type: boolean
+          description: Include alternative translation strategies
+          default: true
+        validation_level:
+          type: string
+          enum: [syntax_only, semantic, full]
+          default: semantic
+
+    TranslationResponse:
+      type: object
+      required:
+        - translation_id
+        - status
+        - kql_query
+        - confidence
+      properties:
+        translation_id:
+          type: string
+        status:
+          type: string
+          enum: [success, partial, failed]
+        kql_query:
+          type: string
+          description: Translated KQL query
+        confidence:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        strategy:
+          type: string
+          description: Translation strategy used
+        estimated_performance:
+          $ref: '#/components/schemas/PerformanceEstimate'
+        validation:
+          $ref: '#/components/schemas/ValidationSummary'
+        explanation:
+          type: string
+          description: Human-readable explanation of translation
+        alternatives:
+          type: array
+          items:
+            $ref: '#/components/schemas/AlternativeStrategy'
+        warnings:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+          properties:
+            agent_iterations:
+              type: integer
+            translation_time_ms:
+              type: number
+            cache_hit:
+              type: boolean
+
+    TranslationFailure:
+      type: object
+      required:
+        - error
+        - reason
+      properties:
+        error:
+          type: string
+          enum: [untranslatable, low_confidence, timeout, validation_failed]
+        reason:
+          type: string
+        details:
+          type: object
+        suggested_alternative:
+          type: string
+          description: Suggested manual approach or query rewrite
+        fallback_translation:
+          type: string
+          description: Best-effort translation if available
+
+    TranslationJob:
+      type: object
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        progress:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+        current_step:
+          type: string
+        result:
+          $ref: '#/components/schemas/TranslationResponse'
+        error:
+          $ref: '#/components/schemas/TranslationFailure'
+
+    PerformanceEstimate:
+      type: object
+      properties:
+        execution_time_ms:
+          type: number
+          description: Estimated query execution time
+        result_cardinality:
+          type: integer
+          description: Estimated result count
+        memory_mb:
+          type: number
+        complexity_score:
+          type: number
+          description: Query complexity (0-100)
+
+    ValidationSummary:
+      type: object
+      properties:
+        syntax_valid:
+          type: boolean
+        semantically_equivalent:
+          type: boolean
+        safety_checks_passed:
+          type: boolean
+        issues:
+          type: array
+          items:
+            type: string
+
+    ValidationResult:
+      type: object
+      properties:
+        is_equivalent:
+          type: boolean
+        confidence:
+          type: number
+        differences:
+          type: array
+          items:
+            type: object
+            properties:
+              aspect:
+                type: string
+              severity:
+                type: string
+                enum: [error, warning, info]
+              description:
+                type: string
+        recommendation:
+          type: string
+
+    AlternativeStrategy:
+      type: object
+      properties:
+        strategy:
+          type: string
+        confidence:
+          type: number
+        kql_query:
+          type: string
+        tradeoff:
+          type: string
+        estimated_performance:
+          $ref: '#/components/schemas/PerformanceEstimate'
+
+    Optimization:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [index_hint, join_reorder, predicate_pushdown, materialization]
+        description:
+          type: string
+        impact:
+          type: string
+          enum: [high, medium, low]
+
+    TranslationFeedback:
+      type: object
+      required:
+        - translation_id
+        - rating
+      properties:
+        translation_id:
+          type: string
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        correctness:
+          type: boolean
+          description: Was the translation semantically correct?
+        actual_execution_time_ms:
+          type: number
+        actual_result_count:
+          type: integer
+        issues:
+          type: array
+          items:
+            type: string
+        comments:
+          type: string
+
+    CachedPattern:
+      type: object
+      properties:
+        pattern_id:
+          type: string
+        cypher_pattern:
+          type: string
+        kql_template:
+          type: string
+        confidence:
+          type: number
+        usage_count:
+          type: integer
+        success_rate:
+          type: number
+        avg_execution_time_ms:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+
+    BatchOptions:
+      type: object
+      properties:
+        parallel_execution:
+          type: boolean
+          default: true
+        fail_fast:
+          type: boolean
+          default: false
+        priority:
+          type: string
+          enum: [high, normal, low]
+
+    BatchSummary:
+      type: object
+      properties:
+        total:
+          type: integer
+        successful:
+          type: integer
+        failed:
+          type: integer
+        avg_confidence:
+          type: number
+        total_time_ms:
+          type: number
+
+    ContextUpdate:
+      type: object
+      properties:
+        schema_metadata:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SchemaEntity'
+        statistics:
+          type: object
+          description: Updated cardinality and performance statistics
+        configuration:
+          type: object
+          description: Agent configuration parameters
+
+    Error:
+      type: object
+      required:
+        - error_code
+        - message
+      properties:
+        error_code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string

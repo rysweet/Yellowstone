@@ -1,0 +1,25 @@
+# Core Dependencies
+antlr4-python3-runtime>=4.13.0  # Cypher parser
+pydantic>=2.0.0  # Data validation
+python-dotenv>=1.0.0  # Environment configuration
+
+# AI Translation Layer
+anthropic>=0.25.0  # Claude API
+claude-agent-sdk>=0.1.0  # Claude Agent SDK (to be released)
+
+# Azure/Sentinel Integration
+azure-identity>=1.15.0
+azure-monitor-query>=1.2.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# Code Quality
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.7.0
+
+# Development
+ipython>=8.18.0
