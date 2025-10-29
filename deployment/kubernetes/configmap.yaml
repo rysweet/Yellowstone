@@ -1,0 +1,221 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yellowstone-config
+  namespace: yellowstone
+  labels:
+    app: yellowstone
+data:
+  # Environment
+  environment: "production"
+  log_level: "INFO"
+
+  # Azure Configuration
+  azure_subscription_id: "YOUR_SUBSCRIPTION_ID"
+  azure_resource_group: "Yellowstone"
+  azure_workspace_name: "yellowstone-prod"
+  sentinel_workspace_id: "YOUR_WORKSPACE_ID"
+
+  # Database Configuration
+  database_host: "yellowstone-postgres.yellowstone.svc.cluster.local"
+  database_port: "5432"
+  database_name: "yellowstone"
+  database_ssl_mode: "require"
+  database_pool_size: "20"
+  database_max_overflow: "10"
+
+  # Redis Configuration
+  redis_host: "yellowstone-redis.yellowstone.svc.cluster.local"
+  redis_port: "6379"
+  redis_db: "0"
+  redis_pool_size: "10"
+
+  # API Configuration
+  api_timeout_seconds: "30"
+  max_query_size: "1048576"  # 1MB
+  max_result_size: "52428800"  # 50MB
+  request_batch_size: "100"
+
+  # Query Processing
+  enable_query_caching: "true"
+  cache_ttl_seconds: "3600"
+  enable_query_optimization: "true"
+  max_compilation_time_ms: "5000"
+
+  # Security
+  enable_audit_logging: "true"
+  require_authentication: "true"
+  enable_rate_limiting: "true"
+  rate_limit_requests_per_minute: "1000"
+
+  # Monitoring
+  enable_metrics: "true"
+  enable_tracing: "true"
+  metrics_port: "9090"
+  trace_sample_rate: "0.1"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yellowstone-env-dev
+  namespace: yellowstone
+data:
+  environment: "development"
+  log_level: "DEBUG"
+  azure_workspace_name: "yellowstone-dev"
+  api_timeout_seconds: "60"
+  cache_ttl_seconds: "300"
+  rate_limit_requests_per_minute: "10000"
+  trace_sample_rate: "1.0"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yellowstone-env-staging
+  namespace: yellowstone
+data:
+  environment: "staging"
+  log_level: "INFO"
+  azure_workspace_name: "yellowstone-staging"
+  api_timeout_seconds: "45"
+  cache_ttl_seconds: "1800"
+  rate_limit_requests_per_minute: "5000"
+  trace_sample_rate: "0.5"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: yellowstone
+data:
+  init.sql: |
+    -- Create schemas
+    CREATE SCHEMA IF NOT EXISTS audit;
+    CREATE SCHEMA IF NOT EXISTS metrics;
+    CREATE SCHEMA IF NOT EXISTS queries;
+
+    -- Audit logging table
+    CREATE TABLE IF NOT EXISTS audit.audit_logs (
+      id BIGSERIAL PRIMARY KEY,
+      timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      user_id VARCHAR(255),
+      action VARCHAR(50) NOT NULL,
+      resource_type VARCHAR(50) NOT NULL,
+      resource_id VARCHAR(255),
+      details JSONB,
+      source_ip INET,
+      status VARCHAR(20),
+      error_message TEXT
+    );
+
+    CREATE INDEX idx_audit_timestamp ON audit.audit_logs(timestamp DESC);
+    CREATE INDEX idx_audit_user_id ON audit.audit_logs(user_id);
+    CREATE INDEX idx_audit_action ON audit.audit_logs(action);
+
+    -- Query execution history
+    CREATE TABLE IF NOT EXISTS queries.query_history (
+      id BIGSERIAL PRIMARY KEY,
+      query_hash VARCHAR(64) NOT NULL UNIQUE,
+      original_query TEXT NOT NULL,
+      translated_query TEXT,
+      execution_time_ms INTEGER,
+      result_count INTEGER,
+      status VARCHAR(20),
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      created_by VARCHAR(255)
+    );
+
+    CREATE INDEX idx_query_hash ON queries.query_history(query_hash);
+    CREATE INDEX idx_query_created_at ON queries.query_history(created_at DESC);
+
+    -- Query performance metrics
+    CREATE TABLE IF NOT EXISTS metrics.query_performance (
+      id BIGSERIAL PRIMARY KEY,
+      query_hash VARCHAR(64) NOT NULL,
+      execution_time_ms INTEGER NOT NULL,
+      memory_used_mb DECIMAL(10, 2),
+      cpu_usage_percent DECIMAL(5, 2),
+      timestamp TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+      FOREIGN KEY (query_hash) REFERENCES queries.query_history(query_hash)
+    );
+
+    CREATE INDEX idx_performance_query_hash ON metrics.query_performance(query_hash);
+    CREATE INDEX idx_performance_timestamp ON metrics.query_performance(timestamp DESC);
+
+    -- Alert rules
+    CREATE TABLE IF NOT EXISTS metrics.alert_rules (
+      id BIGSERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      metric_type VARCHAR(50) NOT NULL,
+      threshold DECIMAL(10, 4) NOT NULL,
+      comparison_operator VARCHAR(2),
+      enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    );
+
+    -- Set up row-level security
+    ALTER TABLE audit.audit_logs ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE queries.query_history ENABLE ROW LEVEL SECURITY;
+
+    -- Create indexes for common queries
+    ANALYZE;
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: yellowstone
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'Yellowstone'
+        environment: 'production'
+
+    scrape_configs:
+    - job_name: 'yellowstone-api'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - yellowstone
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: yellowstone
+      - source_labels: [__meta_kubernetes_pod_container_port_name]
+        action: keep
+        regex: metrics
+      - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name]
+        action: replace
+        separator: /
+        target_label: job
+
+    - job_name: 'postgres'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - yellowstone
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: yellowstone-postgres
+
+    - job_name: 'redis'
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - yellowstone
+      relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: yellowstone-redis
