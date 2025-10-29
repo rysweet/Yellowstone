@@ -840,31 +840,31 @@ def select_graph_type(query_ast, query_history):
 
 **Implementation Strategy**:
 
-**Phase 1** (Weeks 1-4): **Core Graph Operator Translation**
+**Phase 1** (Complexity: MEDIUM): **Core Graph Operator Translation**
 - Implement Cypher → graph-match mapping
 - Support single and multi-hop patterns
 - Add variable-length path translation
 - **Target Coverage: 70%**
 
-**Phase 2** (Weeks 5-8): **Native Algorithms + Persistent Graphs**
+**Phase 2** (Complexity: MEDIUM-HIGH): **Native Algorithms + Persistent Graphs**
 - Integrate graph-shortest-paths
 - Implement persistent graph strategy
 - Add performance optimization layer
 - **Target Coverage: 85%**
 
-**Phase 3** (Weeks 9-12): **Agentic AI Enhancement**
+**Phase 3** (Complexity: HIGH): **Agentic AI Enhancement**
 - Integrate Claude Agent SDK
 - Implement intelligent routing
 - Add complex pattern handling
 - **Target Coverage: 95-98%**
 
-**Phase 4** (Weeks 13-16): **Production Hardening**
+**Phase 4** (Complexity: MEDIUM): **Production Hardening**
 - Security controls (injection prevention, RBAC)
 - Monitoring and alerting
 - Performance tuning
 - Documentation
 
-**Total Timeline**: **4 months to production-ready**
+**Project Scope**: **Medium-term project across 4 phases**
 
 **Investment**: 2-3 engineers, moderate complexity
 
@@ -1078,7 +1078,7 @@ Discovery of KQL's native graph operators represents a **paradigm shift** in Cyp
 - Low maintenance burden
 - High user satisfaction
 
-**Investment**: 4 months, 2-3 engineers
+**Investment**: Medium-term project, 2-3 engineers
 
 **ROI**: 30-50% productivity improvement for security analysts conducting graph-style investigations
 

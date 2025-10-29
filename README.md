@@ -21,16 +21,16 @@ Build a production-grade **Cypher query engine** for Microsoft Sentinel Graph, e
 ## 📊 Project Status
 
 **Phase**: Pre-Development
-**Timeline**: 4 months (20 weeks)
 **Team**: 2-3 engineers
 **Risk Level**: LOW-MEDIUM
+**Complexity**: MEDIUM
 
 ### Development Phases
 
-- [ ] **Phase 1** (Weeks 1-6): Core Graph Operator Translation
-- [ ] **Phase 2** (Weeks 7-12): Performance Optimization & Persistent Graphs
-- [ ] **Phase 3** (Weeks 13-16): Agentic AI Enhancement
-- [ ] **Phase 4** (Weeks 17-20): Production Hardening
+- [ ] **Phase 1**: Core Graph Operator Translation (Complexity: MEDIUM)
+- [ ] **Phase 2**: Performance Optimization & Persistent Graphs (Complexity: MEDIUM-HIGH)
+- [ ] **Phase 3**: Agentic AI Enhancement (Complexity: HIGH)
+- [ ] **Phase 4**: Production Hardening (Complexity: MEDIUM)
 
 ## 🏗️ Architecture
 
@@ -50,10 +50,10 @@ KQL Execution (Microsoft Sentinel)
 
 ## 📚 Documentation
 
-- **[Feasibility Analysis V2](./CYPHER_SENTINEL_FEASIBILITY_ANALYSIS_V2.md)** - Comprehensive technical analysis
-- **[Implementation Plan](./IMPLEMENTATION_PLAN.md)** - Detailed 20-week roadmap
-- **[Architecture Revolution](./KQL_NATIVE_GRAPH_ARCHITECTURE_REVOLUTION.md)** - How KQL native graph changes everything
-- **[Agentic AI API](./agentic_translation_api/)** - AI translation layer design
+- **[Feasibility Analysis V2](./context/analysis/CYPHER_SENTINEL_FEASIBILITY_ANALYSIS_V2.md)** - Comprehensive technical analysis
+- **[Implementation Plan](./context/planning/IMPLEMENTATION_PLAN.md)** - Detailed implementation roadmap
+- **[Architecture Revolution](./context/analysis/KQL_NATIVE_GRAPH_ARCHITECTURE_REVOLUTION.md)** - How KQL native graph changes everything
+- **[Agentic AI API](./context/agentic_api/)** - AI translation layer design
 
 ## 🎓 Key Insights
 

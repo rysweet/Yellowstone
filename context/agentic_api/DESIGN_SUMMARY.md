@@ -348,7 +348,7 @@ if not direct_translator.can_translate(): return AI_PATH
 
 ## Implementation Roadmap
 
-### Phase 1: Core Translation (Weeks 1-4)
+### Phase 1: Core Translation (Complexity: MEDIUM-HIGH)
 
 **Goal**: Basic AI translation working
 
@@ -363,7 +363,7 @@ if not direct_translator.can_translate(): return AI_PATH
 - Confidence scoring working
 - 70% success rate on test queries
 
-### Phase 2: Validation and Refinement (Weeks 5-8)
+### Phase 2: Validation and Refinement (Complexity: HIGH)
 
 **Goal**: High-quality translations with validation
 
@@ -378,7 +378,7 @@ if not direct_translator.can_translate(): return AI_PATH
 - 90% success rate on test queries
 - Sample execution validation working
 
-### Phase 3: Learning System (Weeks 9-12)
+### Phase 3: Learning System (Complexity: HIGH)
 
 **Goal**: Continuous improvement through learning
 
@@ -393,7 +393,7 @@ if not direct_translator.can_translate(): return AI_PATH
 - Success rate improvement over time
 - Pattern coverage metrics
 
-### Phase 4: Integration and Hardening (Weeks 13-16)
+### Phase 4: Integration and Hardening (Complexity: MEDIUM-HIGH)
 
 **Goal**: Production-ready integration
 
@@ -595,12 +595,12 @@ This design provides a **comprehensive, production-ready API** for the Agentic A
 ### Next Steps
 
 1. **Review and Approve**: Architecture and API design
-2. **Prototype**: Core translation with Claude Agent SDK (2 weeks)
-3. **Validate**: Performance and quality benchmarks (1 week)
-4. **Implement**: Full system following roadmap (16 weeks)
-5. **Deploy**: Phased rollout with monitoring (4 weeks)
+2. **Prototype**: Core translation with Claude Agent SDK
+3. **Validate**: Performance and quality benchmarks
+4. **Implement**: Full system following roadmap (4 phases)
+5. **Deploy**: Phased rollout with monitoring
 
-**Total Timeline**: ~6 months to production-ready system
+**Project Scope**: Medium-term project to production-ready system
 
 ---
 

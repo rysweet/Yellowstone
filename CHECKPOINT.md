@@ -8,13 +8,13 @@
 
 ## 🎯 Overall Progress
 
-| Phase | Status | Progress | Start Date | End Date |
-|-------|--------|----------|------------|----------|
-| **Phase 0: Setup** | ✅ COMPLETE | 100% | 2025-10-28 | 2025-10-28 |
-| **Phase 1: Core Translation** | 🔜 PENDING | 0% | Week 1 | Week 6 |
-| **Phase 2: Performance** | 🔜 PENDING | 0% | Week 7 | Week 12 |
-| **Phase 3: AI Enhancement** | 🔜 PENDING | 0% | Week 13 | Week 16 |
-| **Phase 4: Production** | 🔜 PENDING | 0% | Week 17 | Week 20 |
+| Phase | Status | Progress | Complexity |
+|-------|--------|----------|------------|
+| **Phase 0: Setup** | ✅ COMPLETE | 100% | LOW |
+| **Phase 1: Core Translation** | 🔜 PENDING | 0% | MEDIUM |
+| **Phase 2: Performance** | 🔜 PENDING | 0% | MEDIUM-HIGH |
+| **Phase 3: AI Enhancement** | 🔜 PENDING | 0% | HIGH |
+| **Phase 4: Production** | 🔜 PENDING | 0% | MEDIUM |
 
 ---
 
@@ -41,10 +41,11 @@
 
 3. **✅ Repository Setup**
    - Private GitHub repo created: https://github.com/rysweet/Yellowstone
-   - Initial project structure (Python package, tests, docs)
+   - Initial project structure (Python package, tests, context/)
    - Build configuration (pyproject.toml, requirements.txt)
    - CI/CD foundation (.github/workflows/)
    - README, LICENSE, .gitignore
+   - Documentation organized in context/ directory
 
 4. **✅ GitHub Issues**
    - Labels created (epic, phase-1 through phase-4, story, bug, etc.)
@@ -64,8 +65,8 @@
 - ✅ Use KQL native graph operators (primary path)
 - ✅ Claude Agent SDK for complex patterns (10% of queries)
 - ✅ Three-tier translation architecture (85% fast / 10% AI / 5% fallback)
-- ✅ 4-month timeline (20 weeks)
 - ✅ Security-first development approach
+- ✅ Documentation organized in context/ directory for clarity
 
 ---
 
@@ -86,10 +87,10 @@
 **Repository**: https://github.com/rysweet/Yellowstone
 
 **Key Documents**:
-- [Feasibility Analysis V2](./CYPHER_SENTINEL_FEASIBILITY_ANALYSIS_V2.md)
-- [Implementation Plan](./IMPLEMENTATION_PLAN.md)
-- [KQL Native Graph Revolution](./KQL_NATIVE_GRAPH_ARCHITECTURE_REVOLUTION.md)
-- [Agentic AI API Design](./agentic_translation_api/)
+- [Feasibility Analysis V2](./context/analysis/CYPHER_SENTINEL_FEASIBILITY_ANALYSIS_V2.md)
+- [Implementation Plan](./context/planning/IMPLEMENTATION_PLAN.md)
+- [KQL Native Graph Revolution](./context/analysis/KQL_NATIVE_GRAPH_ARCHITECTURE_REVOLUTION.md)
+- [Agentic AI API Design](./context/agentic_api/)
 
 **GitHub Issues**:
 - [Epic #1: Phase 1](https://github.com/rysweet/Yellowstone/issues/1)
@@ -118,19 +119,19 @@
    - Configure testing framework
    - Setup monitoring/observability
 
-### Short Term (Next 2 Weeks)
+### Short Term
 
-1. **Cypher Parser** (Weeks 1-2)
+1. **Cypher Parser** (Complexity: MEDIUM)
    - Integrate ANTLR + openCypher grammar
    - Implement AST data structures
    - Create parser tests (100+ tests)
 
-2. **Schema Mapping** (Weeks 1-2)
+2. **Schema Mapping** (Complexity: MEDIUM)
    - Document Sentinel table structure
    - Define node/edge mappings
    - Create schema configuration format
 
-### Medium Term (Next 6 Weeks)
+### Medium Term
 
 Complete Phase 1 - Core Graph Operator Translation
 

@@ -860,25 +860,25 @@ Has bidirectional patterns or complex exists clauses?
 #### Recommendation 1: Build Incremental Translator
 Start with high-value, low-complexity patterns:
 
-**Phase 1** (Week 1-2):
+**Phase 1** (Complexity: LOW):
 - Simple node filtering (MATCH + WHERE)
 - Single-hop relationships
 - Basic aggregations
 - Target: 40% of common Sentinel queries
 
-**Phase 2** (Week 3-4):
+**Phase 2** (Complexity: MEDIUM):
 - Two-hop relationships
 - OPTIONAL MATCH
 - Subqueries with WITH
 - Target: 70% of common queries
 
-**Phase 3** (Week 5-6):
+**Phase 3** (Complexity: MEDIUM-HIGH):
 - Three-hop relationships
 - Bounded variable-length (depth <= 3)
 - Union of patterns
 - Target: 85% of common queries
 
-**Phase 4** (Week 7-8):
+**Phase 4** (Complexity: HIGH):
 - Hybrid execution for complex patterns
 - Client-side graph algorithms
 - Optimization layer
@@ -1238,25 +1238,25 @@ for path in attack_paths:
 
 ### 7.3 Implementation Roadmap
 
-**Phase 1: Core Translation (Weeks 1-3)**
+**Phase 1: Core Translation (Complexity: MEDIUM)**
 - Implement parser for Cypher AST
 - Build translator for Tier 1 patterns (simple joins, aggregations)
 - Create query classifier
 - Target: 40% query coverage
 
-**Phase 2: Advanced Translation (Weeks 4-6)**
+**Phase 2: Advanced Translation (Complexity: HIGH)**
 - Implement multi-stage translation for 2-3 hop patterns
 - Add optimization layer for join reordering
 - Implement query budgets and safety limits
 - Target: 70% query coverage
 
-**Phase 3: Hybrid Execution (Weeks 7-9)**
+**Phase 3: Hybrid Execution (Complexity: HIGH)**
 - Build client-side graph processing module (NetworkX)
 - Implement hybrid execution for variable-length paths
 - Add shortest path and reachability algorithms
 - Target: 90% query coverage
 
-**Phase 4: Production Hardening (Weeks 10-12)**
+**Phase 4: Production Hardening (Complexity: MEDIUM)**
 - Performance optimization and caching
 - Query optimization hints and user guidance
 - Monitoring and telemetry

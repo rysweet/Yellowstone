@@ -120,7 +120,7 @@
 
 **For engineers building the system**
 
-#### Phase 1: Core Translation (Weeks 1-4)
+#### Phase 1: Core Translation (Complexity: MEDIUM-HIGH)
 
 **Prerequisites**:
 - Claude Agent SDK access
@@ -151,7 +151,7 @@
 - API spec: [openapi.yaml](./openapi.yaml)
 - Examples: [example_usage.py](./example_usage.py#L18-L65)
 
-#### Phase 2: Validation and Refinement (Weeks 5-8)
+#### Phase 2: Validation and Refinement (Complexity: HIGH)
 
 1. **Semantic Validator** ([architecture.md](./architecture.md#4-semantic-validator))
    - Multi-level validation
@@ -168,7 +168,7 @@
    - Cardinality estimation
    - Time prediction
 
-#### Phase 3: Learning System (Weeks 9-12)
+#### Phase 3: Learning System (Complexity: HIGH)
 
 1. **Pattern Cache** ([architecture.md](./architecture.md#5-pattern-cache-and-learning-system))
    - Fuzzy matching
@@ -180,7 +180,7 @@
    - Statistics updates
    - Continuous learning
 
-#### Phase 4: Integration and Hardening (Weeks 13-16)
+#### Phase 4: Integration and Hardening (Complexity: MEDIUM-HIGH)
 
 1. **Query Router** ([integration_patterns.md](./integration_patterns.md#pattern-classification-and-routing))
    - Classification logic

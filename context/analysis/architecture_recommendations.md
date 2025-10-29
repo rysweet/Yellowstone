@@ -735,20 +735,20 @@ result_size_bytes = Histogram(
 
 ## 6. Migration Strategy
 
-### Phase 1: Limited Alpha (Weeks 1-4)
+### Phase 1: Limited Alpha (Complexity: LOW-MEDIUM)
 - Deploy translation layer (read-only)
 - Support simple patterns only (1-hop, basic filters)
 - Internal testing with security team
 - **Success Criteria**: 90% of simple queries translate correctly
 
-### Phase 2: Expanded Beta (Weeks 5-12)
+### Phase 2: Expanded Beta (Complexity: MEDIUM)
 - Add 2-hop pattern support
 - Add aggregation support
 - Limited external users (opt-in)
 - Performance monitoring and tuning
 - **Success Criteria**: P95 latency < 5s for 90% of queries
 
-### Phase 3: General Availability (Weeks 13-20)
+### Phase 3: General Availability (Complexity: LOW)
 - Full feature set (3-hop, variable-length *1..3)
 - Production-grade monitoring
 - Documentation and training

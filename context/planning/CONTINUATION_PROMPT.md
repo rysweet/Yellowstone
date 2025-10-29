@@ -26,7 +26,7 @@ You are being handed a **fully initialized project** with comprehensive research
 - **10% AI Path**: Claude Agent SDK for complex patterns
 - **5% Fallback**: Join-based translation for edge cases
 
-**Timeline**: 4 months (20 weeks) across 4 phases
+**Project Scope**: Medium-term project across 4 phases
 **Current Phase**: Phase 0 Complete ✅ | Phase 1 Ready to Start 🚀
 
 ### Game-Changing Discovery
@@ -122,8 +122,8 @@ RETURN employee.name
    - Covers: Advantages, challenges, risks, opportunities, architecture
 
 2. **IMPLEMENTATION_PLAN.md** ⭐ PRIMARY
-   - 20-week detailed roadmap
-   - 4 phases broken down into epics, stories, tasks
+   - Detailed implementation roadmap across 4 phases
+   - Phases broken down into epics, stories, tasks
    - Testing strategy, documentation plan, risk management
 
 3. **KQL_NATIVE_GRAPH_ARCHITECTURE_REVOLUTION.md** ⭐ CRITICAL
@@ -210,12 +210,12 @@ RETURN employee.name
 ### Phase 1 Goal
 Achieve **70% query coverage** with direct Cypher → KQL graph operator translation
 
-### Duration
-Weeks 1-6 (6 weeks)
+### Complexity
+MEDIUM
 
 ### Key Deliverables
 
-#### Week 1-2: Cypher Parser
+#### Step 1: Cypher Parser (Complexity: MEDIUM)
 **Epic**: Story #5 (if created) or create new story from `.github/story_parser.md`
 
 **Tasks**:
@@ -239,7 +239,7 @@ Weeks 1-6 (6 weeks)
 
 **Reference**: See `IMPLEMENTATION_PLAN.md` Epic 1.2
 
-#### Week 2-4: Direct Translation Engine
+#### Step 2: Direct Translation Engine (Complexity: HIGH)
 **Epic**: Story #6 (if created) or create new from `.github/story_direct_translation.md`
 
 **Tasks**:
@@ -282,7 +282,7 @@ SecurityData
 
 **Reference**: See `IMPLEMENTATION_PLAN.md` Epic 1.3
 
-#### Week 4: Variable-Length Paths
+#### Step 3: Variable-Length Paths (Complexity: MEDIUM-HIGH)
 **Tasks**:
 1. Implement fixed-depth path translation (1-hop, 2-hop, 3-hop)
 2. Implement variable-length path translation:
@@ -298,7 +298,7 @@ SecurityData
 
 **Reference**: See `IMPLEMENTATION_PLAN.md` Epic 1.4
 
-#### Week 5-6: Schema Mapper & Integration
+#### Step 4: Schema Mapper & Integration (Complexity: MEDIUM)
 **Tasks**:
 1. Define schema mapping DSL (YAML format)
 2. Implement default Sentinel schema:
@@ -338,9 +338,9 @@ relationship_mappings:
 
 ---
 
-## 🎯 Immediate Actions (Week 1)
+## 🎯 Immediate Actions (Phase 1 Start)
 
-### Day 1: Environment Setup
+### First Steps: Environment Setup
 1. Clone repository (already exists at `/Users/ryan/src/cypher-sentinel`)
 2. Create Python virtual environment:
    ```bash
@@ -357,7 +357,7 @@ relationship_mappings:
    pytest tests/
    ```
 
-### Day 1-2: CI/CD Setup
+### Next: CI/CD Setup
 1. Review `.github/workflows/` (empty, needs implementation)
 2. Create `ci.yml` workflow:
    - Run pytest on all PRs
@@ -366,7 +366,7 @@ relationship_mappings:
 3. Create pre-commit hooks
 4. Test CI pipeline
 
-### Day 2-3: Download openCypher Grammar
+### Then: Download openCypher Grammar
 1. Clone openCypher repo:
    ```bash
    git clone https://github.com/opencypher/openCypher.git
@@ -376,18 +376,18 @@ relationship_mappings:
 3. Generate Python parser with ANTLR4
 4. Add to project: `src/yellowstone/parser/grammar/`
 
-### Day 3-5: Begin Parser Implementation
+### Finally: Begin Parser Implementation
 1. Create `src/yellowstone/parser/` module
 2. Implement AST node classes
 3. Create parser wrapper
 4. Write initial tests
-5. Aim for 20-30 tests passing by end of week 1
+5. Aim for 20-30 tests passing initially
 
 ---
 
 ## 📊 Success Metrics (Your Targets)
 
-### Phase 1 Completion (Week 6)
+### Phase 1 Completion Targets
 - [ ] Query coverage: **70%**
 - [ ] Translation correctness: **>95%**
 - [ ] Test suite: **500+ tests passing**
@@ -435,7 +435,7 @@ relationship_mappings:
 ### Documentation (In Order of Importance)
 1. `CHECKPOINT.md` - Current status
 2. `CYPHER_SENTINEL_FEASIBILITY_ANALYSIS_V2.md` - Feasibility study
-3. `IMPLEMENTATION_PLAN.md` - 20-week roadmap
+3. `IMPLEMENTATION_PLAN.md` - 4-phase implementation roadmap
 4. `KQL_NATIVE_GRAPH_ARCHITECTURE_REVOLUTION.md` - Game-changing discovery
 
 ### External Resources
@@ -470,7 +470,7 @@ A **Cypher-to-KQL translation engine** that enables security analysts to query M
 - Complexity is **low-moderate** not **high**
 
 ### Your Role
-You are starting **Phase 1 (Weeks 1-6)**: Core graph operator translation.
+You are starting **Phase 1 (Complexity: MEDIUM)**: Core graph operator translation.
 Your deliverable: **70% query coverage** with direct Cypher → KQL translation.
 
 ### Key Architectural Decision Made
@@ -498,7 +498,7 @@ Then:
 1. Review the checkpoint (shows exactly where we are)
 2. Review the implementation plan (shows what to do next)
 3. Create story issues from `.github/story_*.md` templates
-4. Begin parser implementation (Week 1-2 tasks)
+4. Begin parser implementation (Phase 1, Step 1 tasks)
 
 ---
 
@@ -521,7 +521,7 @@ Then:
 
 1. **All files are committed** to `main` branch and pushed to GitHub
 2. **No blockers**: All dependencies available (openCypher grammar, KQL docs, Claude SDK)
-3. **Budget**: Allocated for 4 months (20 weeks) of development
+3. **Project Scope**: Medium-term project across 4 phases
 4. **Team Size**: Designed for 2-3 engineers working in parallel
 5. **Testing**: openCypher TCK provides 1000+ test cases for validation
 6. **Security**: Must be security-first (Sentinel is security-critical)

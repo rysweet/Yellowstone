@@ -2,7 +2,7 @@
 
 **Project**: Cypher Query Engine for Microsoft Sentinel
 **Architecture**: KQL Native Graph Operators with Agentic AI Enhancement
-**Timeline**: 4 months (20 weeks)
+**Complexity**: Medium-term project across 4 phases
 **Team**: 2-3 engineers
 **Target Coverage**: 95-98% of Cypher features
 **Last Updated**: 2025-10-28
@@ -46,14 +46,14 @@
 | **Query Latency (P95)** | <5s | Performance monitoring |
 | **Security Compliance** | 100% | Security audit |
 
-### Timeline Summary
+### Phase Summary
 
-| Phase | Duration | Key Deliverable | Coverage |
-|-------|----------|-----------------|----------|
-| **Phase 1** | Weeks 1-6 | Core graph operator translation | 70% |
-| **Phase 2** | Weeks 7-12 | Performance optimization | 85% |
-| **Phase 3** | Weeks 13-16 | Agentic AI enhancement | 95-98% |
-| **Phase 4** | Weeks 17-20 | Production hardening | Production-ready |
+| Phase | Complexity | Key Deliverable | Coverage |
+|-------|-----------|-----------------|----------|
+| **Phase 1** | MEDIUM | Core graph operator translation | 70% |
+| **Phase 2** | MEDIUM-HIGH | Performance optimization | 85% |
+| **Phase 3** | HIGH | Agentic AI enhancement | 95-98% |
+| **Phase 4** | MEDIUM | Production hardening | Production-ready |
 
 ---
 
@@ -322,11 +322,12 @@ Each module follows the **brick architecture** principles:
 
 ## Phase Breakdown
 
-### Phase 1: Core Translation (Weeks 1-6)
+### Phase 1: Core Translation
 
 **Goal**: Implement direct Cypher → KQL graph operator translation for 70% of queries
+**Complexity**: MEDIUM
 
-#### Week 1-2: Foundation and Parsing
+#### Step 1: Foundation and Parsing (Complexity: MEDIUM)
 
 **Focus**: Set up infrastructure and Cypher parsing
 
@@ -350,7 +351,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 3-4: Graph Operator Translation
+#### Step 2: Graph Operator Translation (Complexity: HIGH)
 
 **Focus**: Implement core translation to KQL graph operators
 
@@ -374,7 +375,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 5-6: Execution and Basic Integration
+#### Step 3: Execution and Basic Integration (Complexity: MEDIUM)
 
 **Focus**: Execute translated queries and build end-to-end pipeline
 
@@ -399,11 +400,12 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-### Phase 2: Performance Optimization (Weeks 7-12)
+### Phase 2: Performance Optimization
 
 **Goal**: Optimize performance and add persistent graphs for 85% coverage
+**Complexity**: MEDIUM-HIGH
 
-#### Week 7-8: Query Optimization
+#### Step 1: Query Optimization (Complexity: HIGH)
 
 **Focus**: Optimize generated KQL queries
 
@@ -426,7 +428,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 9-10: Persistent Graphs
+#### Step 2: Persistent Graphs (Complexity: HIGH)
 
 **Focus**: Implement persistent graph strategy for performance
 
@@ -450,7 +452,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 11-12: Native Algorithms
+#### Step 3: Native Algorithms (Complexity: MEDIUM-HIGH)
 
 **Focus**: Integrate KQL native graph algorithms
 
@@ -474,11 +476,12 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-### Phase 3: Agentic AI Enhancement (Weeks 13-16)
+### Phase 3: Agentic AI Enhancement
 
 **Goal**: Add intelligent AI translation for complex patterns, achieving 95-98% coverage
+**Complexity**: HIGH
 
-#### Week 13-14: Claude Agent Integration
+#### Step 1: Claude Agent Integration (Complexity: HIGH)
 
 **Focus**: Integrate Claude Agent SDK for complex translation
 
@@ -502,7 +505,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 15-16: Learning System and Routing
+#### Step 2: Learning System and Routing (Complexity: HIGH)
 
 **Focus**: Implement pattern cache, learning, and intelligent routing
 
@@ -528,11 +531,12 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-### Phase 4: Production Hardening (Weeks 17-20)
+### Phase 4: Production Hardening
 
 **Goal**: Security, reliability, monitoring, and documentation for production readiness
+**Complexity**: MEDIUM
 
-#### Week 17-18: Security and Compliance
+#### Step 1: Security and Compliance (Complexity: HIGH)
 
 **Focus**: Implement comprehensive security controls
 
@@ -559,7 +563,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 19: Monitoring and Observability
+#### Step 2: Monitoring and Observability (Complexity: MEDIUM)
 
 **Focus**: Production monitoring and alerting
 
@@ -583,7 +587,7 @@ Each module follows the **brick architecture** principles:
 
 ---
 
-#### Week 20: Documentation and Launch Prep
+#### Step 3: Documentation and Launch Prep (Complexity: LOW)
 
 **Focus**: Complete documentation and final testing
 
@@ -614,56 +618,56 @@ Each module follows the **brick architecture** principles:
 ### Dependency Graph
 
 ```
-Week 1-2: Foundation
+Phase 1, Step 1: Foundation
 ├── Repository Setup (E1)
 ├── Cypher Parser (E1, E2)
 └── CI/CD Pipeline (E1, E3)
       ↓
-Week 3-4: Translation
+Phase 1, Step 2: Translation
 ├── Graph Operator Translator (E1, E2) [depends: Parser]
 └── Schema Mapper (E3) [depends: Parser]
       ↓
-Week 5-6: Execution
+Phase 1, Step 3: Execution
 ├── Execution Engine (E1) [depends: Schema Mapper]
 ├── API Layer (E2) [depends: Translator, Execution]
 └── Integration Tests (E3) [depends: API]
       ↓
-Week 7-8: Optimization
+Phase 2, Step 1: Optimization
 ├── Query Optimizer (E1) [depends: Translator]
 ├── Query Plan Analysis (E2) [depends: Execution]
 └── Benchmark Suite (E3) [depends: all]
       ↓
-Week 9-10: Persistent Graphs
+Phase 2, Step 2: Persistent Graphs
 ├── Graph Manager (E1) [depends: Execution]
 ├── Persistent Graph Automation (E2) [depends: Graph Manager]
 └── Graph Versioning (E3) [depends: Graph Manager]
       ↓
-Week 11-12: Native Algorithms
+Phase 2, Step 3: Native Algorithms
 ├── Shortest Path (E1) [depends: Translator]
 ├── Bidirectional Patterns (E2) [depends: Translator]
 └── Pattern Library (E3) [depends: all translation]
       ↓
-Week 13-14: AI Integration
+Phase 3, Step 1: AI Integration
 ├── Claude Agent Integration (E1) [independent]
 ├── Context Preparation (E2) [depends: Schema Mapper]
 └── Validation (E3) [depends: Agent]
       ↓
-Week 15-16: Learning
+Phase 3, Step 2: Learning
 ├── Pattern Cache (E1) [depends: Agent]
 ├── Learning System (E2) [depends: Cache]
 └── Query Router (E3) [depends: Classifier, Agent, Translator]
       ↓
-Week 17-18: Security
+Phase 4, Step 1: Security
 ├── Injection Prevention (E1) [depends: Translator]
 ├── RBAC (E2) [depends: API]
 └── Security Tests (E3) [depends: all]
       ↓
-Week 19: Monitoring
+Phase 4, Step 2: Monitoring
 ├── Metrics (E1) [depends: all modules]
 ├── Dashboards (E2) [depends: Metrics]
 └── Alerting (E3) [depends: Metrics]
       ↓
-Week 20: Documentation
+Phase 4, Step 3: Documentation
 ├── User Guide (E1) [depends: API]
 ├── Developer Guide (E2) [depends: all]
 └── Load Testing (E3) [depends: all]
@@ -671,15 +675,15 @@ Week 20: Documentation
 
 ### Parallelization Opportunities
 
-**High Parallelism** (Weeks 1-6):
+**High Parallelism** (Phase 1):
 - Parser, Schema Mapper, CI/CD can proceed independently
 - Translation and Execution can be developed in parallel once interfaces defined
 
-**Medium Parallelism** (Weeks 7-12):
+**Medium Parallelism** (Phase 2):
 - Optimization, Persistent Graphs, Native Algorithms can largely proceed in parallel
 - Require coordination on shared interfaces
 
-**Low Parallelism** (Weeks 13-20):
+**Low Parallelism** (Phases 3-4):
 - AI integration requires foundational work complete
 - Security, monitoring, documentation sequential on working system
 
@@ -708,7 +712,7 @@ BUG (discovered issues)
 ```markdown
 ---
 name: Epic
-about: Phase-level deliverable (2-6 weeks)
+about: Phase-level deliverable
 title: '[EPIC] Phase N: <Phase Name>'
 labels: epic, phase-N
 assignees: ''
@@ -717,7 +721,7 @@ assignees: ''
 ## Epic Overview
 
 **Phase**: N
-**Duration**: Weeks X-Y
+**Complexity**: [LOW|MEDIUM|MEDIUM-HIGH|HIGH]
 **Goal**: <Phase goal in one sentence>
 
 ## Success Criteria
@@ -748,12 +752,12 @@ assignees: ''
 |------|------------|
 | Risk 1 | Mitigation strategy |
 
-## Timeline
+## Sequence
 
-| Week | Focus | Status |
+| Step | Focus | Status |
 |------|-------|--------|
-| X | Deliverable 1 | Not Started |
-| Y | Deliverable 2 | Not Started |
+| 1 | Deliverable 1 | Not Started |
+| 2 | Deliverable 2 | Not Started |
 ```
 
 ### Story Template
@@ -783,7 +787,6 @@ So that **[benefit]**.
 ## Technical Details
 
 **Module**: `modules/<module-name>`
-**Estimated Effort**: X days
 **Complexity**: Low | Medium | High
 
 ## Tasks
@@ -847,9 +850,9 @@ assignees: ''
 **Integration Tests** (if applicable):
 - Test scenario 1
 
-## Estimated Effort
+## Complexity
 
-X hours/days
+[LOW|MEDIUM|HIGH]
 
 ## Dependencies
 
@@ -925,10 +928,10 @@ assignees: ''
 - `bug` - Bug report
 
 **Phase**:
-- `phase-1` - Core Translation (Weeks 1-6)
-- `phase-2` - Performance Optimization (Weeks 7-12)
-- `phase-3` - Agentic AI Enhancement (Weeks 13-16)
-- `phase-4` - Production Hardening (Weeks 17-20)
+- `phase-1` - Core Translation (Complexity: MEDIUM)
+- `phase-2` - Performance Optimization (Complexity: MEDIUM-HIGH)
+- `phase-3` - Agentic AI Enhancement (Complexity: HIGH)
+- `phase-4` - Production Hardening (Complexity: MEDIUM)
 
 **Module**:
 - `module: parser`
@@ -946,17 +949,17 @@ assignees: ''
 
 ### Milestones
 
-| Milestone | Date | Description |
-|-----------|------|-------------|
-| **M1: Core Translation** | End of Week 6 | 70% coverage, basic translation working |
-| **M2: Performance Optimized** | End of Week 12 | 85% coverage, persistent graphs, optimized |
-| **M3: AI Enhanced** | End of Week 16 | 95-98% coverage, AI translation working |
-| **M4: Production Ready** | End of Week 20 | Security hardened, documented, monitored |
+| Milestone | Completion | Description |
+|-----------|-----------|-------------|
+| **M1: Core Translation** | End of Phase 1 | 70% coverage, basic translation working |
+| **M2: Performance Optimized** | End of Phase 2 | 85% coverage, persistent graphs, optimized |
+| **M3: AI Enhanced** | End of Phase 3 | 95-98% coverage, AI translation working |
+| **M4: Production Ready** | End of Phase 4 | Security hardened, documented, monitored |
 
 ### Example Issue Structure for Phase 1
 
 ```
-EPIC #1: Phase 1 - Core Translation (Weeks 1-6)
+EPIC #1: Phase 1 - Core Translation
 ├── STORY #2: Parse Cypher queries to AST
 │   ├── TASK #3: Integrate ANTLR Cypher grammar
 │   ├── TASK #4: Define AST node classes
@@ -1716,7 +1719,7 @@ ORDER BY indirection_depth
 **Expected Performance**: 2-5s (includes AI translation time)
 ```
 
-**Timeline**: Week 20 (Engineer 1)
+**Assignment**: Engineer 1
 
 ---
 
@@ -1790,7 +1793,7 @@ ORDER BY indirection_depth
 **Authentication**: Bearer token required
 ```
 
-**Timeline**: Week 20 (Engineer 1)
+**Assignment**: Engineer 1
 
 ---
 
@@ -1879,7 +1882,7 @@ Cypher-Sentinel is a modular query engine that translates Cypher queries to KQL 
 **Contract**: Given AST + schema, produce optimized KQL query
 ```
 
-**Timeline**: Week 20 (Engineer 2)
+**Assignment**: Engineer 2
 
 ---
 
@@ -2006,7 +2009,7 @@ Application Insights is automatically configured via environment variables.
 **Configure Alerts**: See `monitoring.md`
 ```
 
-**Timeline**: Week 20 (Engineer 2)
+**Assignment**: Engineer 2
 
 ---
 
@@ -2048,55 +2051,55 @@ Application Insights is automatically configured via environment variables.
 
 ---
 
-### Phase 1 Risks (Weeks 1-6)
+### Phase 1 Risks (Complexity: MEDIUM)
 
 | Risk | Likelihood | Impact | Priority | Mitigation |
 |------|-----------|--------|----------|------------|
 | **ANTLR Cypher grammar incomplete** | M | H | HIGH | - Use official openCypher grammar<br>- Fallback to pyparsing for missing patterns<br>- Start with core syntax subset |
-| **Azure Data Explorer access issues** | L | H | MEDIUM | - Test ADX connectivity early (Week 1)<br>- Have backup test environment<br>- Document auth process clearly |
+| **Azure Data Explorer access issues** | L | H | MEDIUM | - Test ADX connectivity early in phase<br>- Have backup test environment<br>- Document auth process clearly |
 | **Team member unavailability** | M | M | MEDIUM | - Cross-train on modules<br>- Document work-in-progress<br>- Use pairing for critical components |
-| **Scope creep** | H | M | HIGH | - Strict adherence to 70% coverage target<br>- Defer advanced features to Phase 2+<br>- Weekly scope review |
+| **Scope creep** | H | M | HIGH | - Strict adherence to 70% coverage target<br>- Defer advanced features to Phase 2+<br>- Regular scope review |
 
-**Contingency Plan**: If Week 5 assessment shows <60% coverage, defer API layer to Phase 2 and focus on core translation quality.
+**Contingency Plan**: If mid-phase assessment shows <60% coverage, defer API layer to Phase 2 and focus on core translation quality.
 
 ---
 
-### Phase 2 Risks (Weeks 7-12)
+### Phase 2 Risks (Complexity: MEDIUM-HIGH)
 
 | Risk | Likelihood | Impact | Priority | Mitigation |
 |------|-----------|--------|----------|------------|
-| **Optimization doesn't improve performance** | M | M | MEDIUM | - Benchmark early (Week 7)<br>- Focus on high-value optimizations<br>- Accept 2-5x overhead as baseline |
+| **Optimization doesn't improve performance** | M | M | MEDIUM | - Benchmark early in phase<br>- Focus on high-value optimizations<br>- Accept 2-5x overhead as baseline |
 | **Persistent graphs slow to refresh** | M | M | MEDIUM | - Implement incremental refresh<br>- Use versioning for zero-downtime updates<br>- Cache popular graph configurations |
 | **KQL graph operators less capable than expected** | L | H | MEDIUM | - Validate all graph operator features early<br>- Have join-based fallback ready<br>- Test on real Sentinel data |
-| **Performance regression in CI** | M | L | LOW | - Establish baseline benchmarks Week 7<br>- Automated regression detection<br>- Performance review in PRs |
+| **Performance regression in CI** | M | L | LOW | - Establish baseline benchmarks early<br>- Automated regression detection<br>- Performance review in PRs |
 
 **Contingency Plan**: If persistent graphs prove unstable, rely on transient graphs + aggressive caching as primary strategy.
 
 ---
 
-### Phase 3 Risks (Weeks 13-16)
+### Phase 3 Risks (Complexity: HIGH)
 
 | Risk | Likelihood | Impact | Priority | Mitigation |
 |------|-----------|--------|----------|------------|
 | **Claude Agent SDK translation quality poor** | M | H | HIGH | - Start with simple patterns, build confidence<br>- Implement robust validation layer<br>- Human-in-loop for low-confidence translations<br>- Fallback to join-based translation |
 | **AI translation too slow (>2s)** | M | M | MEDIUM | - Aggressive caching of AI translations<br>- Async translation with progress tracking<br>- Pattern generalization to reduce unique queries |
 | **Claude API cost exceeds budget** | L | M | LOW | - Cache aggressively (target >80% hit rate)<br>- Use smaller model for simple patterns<br>- Implement cost tracking and alerts<br>- Fallback to rule-based translation |
-| **Learning system doesn't improve over time** | M | L | LOW | - Manual pattern curation as fallback<br>- Collect user feedback actively<br>- Review learning metrics weekly |
+| **Learning system doesn't improve over time** | M | L | LOW | - Manual pattern curation as fallback<br>- Collect user feedback actively<br>- Review learning metrics regularly |
 
 **Contingency Plan**: If AI translation quality <70% confidence consistently, reduce AI tier scope to 5% and expand join-based fallback to 15%.
 
 ---
 
-### Phase 4 Risks (Weeks 17-20)
+### Phase 4 Risks (Complexity: MEDIUM)
 
 | Risk | Likelihood | Impact | Priority | Mitigation |
 |------|-----------|--------|----------|------------|
-| **Security vulnerabilities discovered** | M | H | HIGH | - External penetration test (Week 18)<br>- Security review by dedicated team<br>- Bug bounty program post-launch |
-| **Production load exceeds capacity** | M | M | MEDIUM | - Load testing with 2x expected peak (Week 20)<br>- Horizontal scaling validated<br>- Auto-scaling configured |
-| **Documentation incomplete** | H | M | HIGH | - Start documentation early (ongoing)<br>- Dedicate Week 20 to documentation completion<br>- Technical writer review (if available) |
-| **Launch readiness not achieved** | L | H | MEDIUM | - Weekly production readiness checklist<br>- Go/no-go review Week 19<br>- Soft launch to pilot users first |
+| **Security vulnerabilities discovered** | M | H | HIGH | - External penetration test in security step<br>- Security review by dedicated team<br>- Bug bounty program post-launch |
+| **Production load exceeds capacity** | M | M | MEDIUM | - Load testing with 2x expected peak<br>- Horizontal scaling validated<br>- Auto-scaling configured |
+| **Documentation incomplete** | H | M | HIGH | - Start documentation early (ongoing)<br>- Dedicate final step to documentation completion<br>- Technical writer review (if available) |
+| **Launch readiness not achieved** | L | H | MEDIUM | - Regular production readiness checklist<br>- Go/no-go review before launch<br>- Soft launch to pilot users first |
 
-**Contingency Plan**: If production readiness not achieved by Week 20, conduct 2-week pilot with limited users before full launch.
+**Contingency Plan**: If production readiness not achieved by phase end, conduct pilot with limited users before full launch.
 
 ---
 
@@ -2106,7 +2109,7 @@ Application Insights is automatically configured via environment variables.
 |------|-----------|--------|----------|------------|
 | **Schema drift in Sentinel** | H | H | CRITICAL | - Implement schema versioning<br>- Automated schema sync tests<br>- Version compatibility matrix<br>- Schema change alerts |
 | **Team turnover** | L | H | MEDIUM | - Comprehensive documentation<br>- Regular knowledge sharing sessions<br>- Modular architecture enables handoff |
-| **Changing requirements** | M | M | MEDIUM | - Agile sprints with review points<br>- Stakeholder demos every 2 weeks<br>- Prioritize ruthlessly (MVP mindset) |
+| **Changing requirements** | M | M | MEDIUM | - Agile sprints with review points<br>- Regular stakeholder demos<br>- Prioritize ruthlessly (MVP mindset) |
 | **Technical debt accumulation** | H | M | HIGH | - Dedicated refactoring time (20% per sprint)<br>- Pre-commit hooks enforce standards<br>- Regular code quality reviews |
 
 **Mitigation Strategy**: Monthly risk review meetings with stakeholders to reassess and adjust.
@@ -2157,95 +2160,89 @@ Application Insights is automatically configured via environment variables.
 |--------|--------|-------------------|
 | **Analyst Productivity** | 30-50% improvement | Time-to-insight surveys |
 | **Query Volume** | Track growth | Query logs |
-| **Adoption Rate** | >50% of team in 3 months | User analytics |
+| **Adoption Rate** | >50% of team post-launch | User analytics |
 | **Cost per Query** | <$0.05 | Claude API costs + infra |
 | **ROI** | >1000% in year 1 | Cost savings vs analyst time |
 
 ---
 
-## Appendix A: Weekly Milestone Checklist
+## Appendix A: Phase Milestone Checklist
 
-### Week 1
+### Phase 1, Step 1: Foundation
 - [ ] Repository created with structure
 - [ ] CI/CD pipeline functional
 - [ ] Pre-commit hooks configured
 - [ ] ANTLR Cypher grammar integrated
 - [ ] Team onboarded and accounts provisioned
-
-### Week 2
 - [ ] Parser generates AST for basic queries
 - [ ] Syntax validator functional
 - [ ] 50+ parser unit tests passing
 - [ ] Documentation: Architecture overview
 
-### Week 3
+### Phase 1, Step 2: Translation
 - [ ] Single-hop MATCH translation working
 - [ ] WHERE clause translation functional
 - [ ] RETURN clause translation functional
 - [ ] 40+ translation unit tests passing
-
-### Week 4
 - [ ] Multi-hop (2-5 hops) translation working
 - [ ] Variable-length path translation functional
 - [ ] Schema mapper integrated
 - [ ] 60+ translation tests passing
 
-### Week 5
+### Phase 1, Step 3: Execution
 - [ ] Azure Data Explorer connection working
 - [ ] Execute translated queries on Sentinel
 - [ ] Result transformation functional
 - [ ] 10+ end-to-end tests passing
-
-### Week 6
 - [ ] REST API endpoints functional
 - [ ] Authentication middleware working
 - [ ] OpenAPI spec generated
 - [ ] **Milestone 1: 70% coverage achieved**
 
-### Week 7-8
+### Phase 2, Step 1: Optimization
 - [ ] Query optimization layer implemented
 - [ ] Benchmark suite (20+ queries) running
 - [ ] 30-50% performance improvement demonstrated
 - [ ] Performance regression detection in CI
 
-### Week 9-10
+### Phase 2, Step 2: Persistent Graphs
 - [ ] Persistent graphs functional
 - [ ] Graph refresh automation working
 - [ ] 50-100x speedup on repeated queries
 - [ ] Intelligent graph selection working
 
-### Week 11-12
+### Phase 2, Step 3: Native Algorithms
 - [ ] Shortest path translation functional
 - [ ] Bidirectional patterns working
 - [ ] **Milestone 2: 85% coverage achieved**
 - [ ] Advanced pattern library documented
 
-### Week 13-14
+### Phase 3, Step 1: AI Integration
 - [ ] Claude Agent SDK integrated
 - [ ] Goal-seeking engine functional
 - [ ] Semantic validation working
 - [ ] 100-500ms AI translation latency
 
-### Week 15-16
+### Phase 3, Step 2: Learning
 - [ ] Pattern cache with fuzzy matching
 - [ ] Learning system functional
 - [ ] Query router with tier selection
 - [ ] **Milestone 3: 95-98% coverage achieved**
 
-### Week 17-18
+### Phase 4, Step 1: Security
 - [ ] Injection prevention validated
 - [ ] RBAC enforcement working
 - [ ] Rate limiting functional
 - [ ] Security tests passing
 - [ ] External penetration test completed
 
-### Week 19
+### Phase 4, Step 2: Monitoring
 - [ ] Application Insights integrated
 - [ ] Custom metrics tracked
 - [ ] Alerting rules configured
 - [ ] Dashboards operational
 
-### Week 20
+### Phase 4, Step 3: Documentation
 - [ ] User guide complete
 - [ ] API reference complete
 - [ ] Developer guide complete
@@ -2262,53 +2259,53 @@ Application Insights is automatically configured via environment variables.
 **Engineer 1** (Full-stack, Backend focus):
 - Primary: Parser, Translator, Execution Engine
 - Secondary: API, Integration
-- Weeks 1-6: Lead core translation implementation
-- Weeks 7-12: Lead optimization and algorithms
-- Weeks 13-16: Lead AI integration
-- Weeks 17-20: Lead security and documentation
+- Phase 1: Lead core translation implementation
+- Phase 2: Lead optimization and algorithms
+- Phase 3: Lead AI integration
+- Phase 4: Lead security and documentation
 
 **Engineer 2** (Full-stack, DevOps focus):
 - Primary: Schema Mapper, API, Security, Deployment
 - Secondary: Testing, Documentation
-- Weeks 1-6: Support translation, build API
-- Weeks 7-12: Lead persistent graphs
-- Weeks 13-16: Lead learning system and routing
-- Weeks 17-20: Lead monitoring and deployment
+- Phase 1: Support translation, build API
+- Phase 2: Lead persistent graphs
+- Phase 3: Lead learning system and routing
+- Phase 4: Lead monitoring and deployment
 
 ### 3-Person Team Configuration
 
 **Engineer 1** (Backend, Parser/Translation specialist):
 - Primary: Parser, Graph Operator Translator
-- Weeks 1-6: Core translation
-- Weeks 7-12: Optimization and algorithms
-- Weeks 13-16: AI integration support
-- Weeks 17-20: Security implementation
+- Phase 1: Core translation
+- Phase 2: Optimization and algorithms
+- Phase 3: AI integration support
+- Phase 4: Security implementation
 
 **Engineer 2** (Backend, AI/ML focus):
 - Primary: Agentic AI Translator, Learning System
-- Weeks 1-6: Schema Mapper
-- Weeks 7-12: Persistent graphs
-- Weeks 13-16: Lead AI integration and learning
-- Weeks 17-20: Monitoring and alerting
+- Phase 1: Schema Mapper
+- Phase 2: Persistent graphs
+- Phase 3: Lead AI integration and learning
+- Phase 4: Monitoring and alerting
 
 **Engineer 3** (Full-stack, DevOps):
 - Primary: API, Execution Engine, Deployment
-- Weeks 1-6: API and execution
-- Weeks 7-12: Performance benchmarking
-- Weeks 13-16: Query router and fallback chain
-- Weeks 17-20: Lead deployment and documentation
+- Phase 1: API and execution
+- Phase 2: Performance benchmarking
+- Phase 3: Query router and fallback chain
+- Phase 4: Lead deployment and documentation
 
 ---
 
 ## Appendix C: Key Decision Log
 
-| # | Date | Decision | Rationale | Impact |
-|---|------|----------|-----------|--------|
-| 1 | Week 0 | Use Python 3.11+ | Mature libraries, Claude SDK support, team expertise | Core technology |
-| 2 | Week 0 | ANTLR4 for parser | Production-grade, existing Cypher grammar | Faster parser dev |
-| 3 | Week 0 | Modular monorepo | Balance simplicity and modularity for small team | Project structure |
-| 4 | Week 0 | FastAPI for API | Performance + auto-docs + async support | API framework |
-| 5 | Week 0 | Target 95-98% coverage | Balance ambition and realism | Scope |
+| # | Decision Phase | Decision | Rationale | Impact |
+|---|---------------|----------|-----------|--------|
+| 1 | Planning | Use Python 3.11+ | Mature libraries, Claude SDK support, team expertise | Core technology |
+| 2 | Planning | ANTLR4 for parser | Production-grade, existing Cypher grammar | Faster parser dev |
+| 3 | Planning | Modular monorepo | Balance simplicity and modularity for small team | Project structure |
+| 4 | Planning | FastAPI for API | Performance + auto-docs + async support | API framework |
+| 5 | Planning | Target 95-98% coverage | Balance ambition and realism | Scope |
 
 **Note**: Add new decisions as project progresses
 
@@ -2331,15 +2328,15 @@ Application Insights is automatically configured via environment variables.
 - **openCypher Spec**: https://opencypher.org
 - **KQL Reference**: https://docs.microsoft.com/en-us/azure/data-explorer/kusto/query/
 
-### Weekly Sync
+### Regular Sync
 
 - **When**: Mondays 10:00 AM
 - **Duration**: 30 minutes
-- **Agenda**: Previous week review, current week planning, blockers
+- **Agenda**: Previous period review, current period planning, blockers
 
 ### Sprint Reviews
 
-- **Cadence**: Every 2 weeks (end of even weeks)
+- **Cadence**: Regular intervals
 - **Audience**: Team + stakeholders
 - **Format**: Demo + metrics review
 
@@ -2354,7 +2351,7 @@ Application Insights is automatically configured via environment variables.
 
 ## Summary
 
-This implementation plan provides a **comprehensive, actionable roadmap** for building Cypher-Sentinel over 4 months with a 2-3 person team. The plan emphasizes:
+This implementation plan provides a **comprehensive, actionable roadmap** for building Cypher-Sentinel across 4 phases with a 2-3 person team. The plan emphasizes:
 
 1. **Incremental delivery** - 70% → 85% → 95-98% coverage across 4 phases
 2. **Risk mitigation** - Identified risks per phase with concrete mitigation strategies

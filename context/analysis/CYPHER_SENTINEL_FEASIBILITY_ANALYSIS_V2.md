@@ -52,11 +52,11 @@
 
 **Status: HIGHLY RECOMMENDED**
 
-**Implementation Timeline**: 4 months (vs 6-9 months before)
-- Phase 1: Core graph operator translation (70% coverage) - 6 weeks
-- Phase 2: Native algorithms + persistent graphs (85% coverage) - 6 weeks
-- Phase 3: Agentic AI enhancement (95-98% coverage) - 4 weeks
-- Phase 4: Production hardening - 4 weeks
+**Implementation Scope**: Medium-term project across 4 phases (significantly reduced from original estimates)
+- Phase 1: Core graph operator translation (70% coverage) - Complexity: MEDIUM
+- Phase 2: Native algorithms + persistent graphs (85% coverage) - Complexity: MEDIUM-HIGH
+- Phase 3: Agentic AI enhancement (95-98% coverage) - Complexity: HIGH
+- Phase 4: Production hardening - Complexity: MEDIUM
 
 **Risk Level**: LOW-MEDIUM (reduced from MEDIUM-HIGH)
 
@@ -598,7 +598,7 @@ agent = ClaudeAgent(
 
 ## Implementation Plan
 
-### Phase 1: Core Graph Operator Translation (Weeks 1-6)
+### Phase 1: Core Graph Operator Translation (Complexity: MEDIUM)
 
 **Goal:** 70% query coverage with direct translation
 
@@ -615,7 +615,7 @@ agent = ClaudeAgent(
 **Team:** 2 engineers
 **Success Criteria:** 70% of test queries execute successfully
 
-### Phase 2: Native Algorithms + Persistent Graphs (Weeks 7-12)
+### Phase 2: Native Algorithms + Persistent Graphs (Complexity: MEDIUM-HIGH)
 
 **Goal:** 85% query coverage with performance optimization
 
@@ -634,7 +634,7 @@ agent = ClaudeAgent(
 **Team:** 2-3 engineers
 **Success Criteria:** 85% coverage, <3s P95 latency
 
-### Phase 3: Agentic AI Enhancement (Weeks 13-16)
+### Phase 3: Agentic AI Enhancement (Complexity: HIGH)
 
 **Goal:** 95-98% query coverage with intelligent translation
 
@@ -649,7 +649,7 @@ agent = ClaudeAgent(
 **Team:** 2 engineers (1 AI specialist)
 **Success Criteria:** 95-98% coverage, >90% confidence on complex queries
 
-### Phase 4: Production Hardening (Weeks 17-20)
+### Phase 4: Production Hardening (Complexity: MEDIUM)
 
 **Goal:** Production-ready deployment
 
@@ -680,7 +680,7 @@ agent = ClaudeAgent(
 4. **Reduced complexity** - 70% less code to maintain
 5. **Strategic value** - First SIEM with Cypher support
 
-**Investment:** 4-5 months, 2-3 engineers
+**Investment:** Medium-term project, 2-3 engineers
 **ROI:** 40-60% analyst productivity improvement
 **Risk:** LOW-MEDIUM (manageable)
 
@@ -688,10 +688,10 @@ agent = ClaudeAgent(
 
 **Approach: Incremental Rollout**
 
-1. **Phase 1** (Weeks 1-6): Core translation, internal testing
-2. **Phase 2** (Weeks 7-12): Performance optimization, beta users
-3. **Phase 3** (Weeks 13-16): AI enhancement, power users
-4. **Phase 4** (Weeks 17-20): Security hardening, general availability
+1. **Phase 1** (Complexity: MEDIUM): Core translation, internal testing
+2. **Phase 2** (Complexity: MEDIUM-HIGH): Performance optimization, beta users
+3. **Phase 3** (Complexity: HIGH): AI enhancement, power users
+4. **Phase 4** (Complexity: MEDIUM): Security hardening, general availability
 
 **Decision Points:**
 - After Phase 1: Validate translation accuracy (>95% correctness)
@@ -763,7 +763,7 @@ See companion documents for deep dives:
 2. **Feature Coverage**: 60-70% → **85-95%** (direct) → **95-98%** (with AI)
 3. **Translation Complexity**: HIGH → **LOW-MODERATE** (70% reduction)
 4. **Performance**: 10-100x overhead → **2-5x overhead**
-5. **Timeline**: 6-9 months → **4 months**
+5. **Timeline**: Original 6-9 months → **Medium-term project** (significantly reduced)
 6. **Risk Level**: MEDIUM-HIGH → **LOW-MEDIUM**
 
 ### Why This Changes Everything
