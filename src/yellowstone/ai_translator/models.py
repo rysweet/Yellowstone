@@ -171,10 +171,11 @@ class ClaudeAPIRequest(BaseModel):
 
     prompt: str = Field(..., description="Prompt for Claude")
     system: Optional[str] = Field(default=None, description="System prompt")
-    max_tokens: int = Field(default=4096, gt=0, le=8192, description="Maximum tokens to generate")
+    max_tokens: int = Field(default=8192, gt=0, le=65536, description="Maximum tokens to generate (Sonnet 4.5: up to 64K)")
     temperature: float = Field(default=0.0, ge=0.0, le=1.0, description="Sampling temperature")
     stream: bool = Field(default=False, description="Whether to stream response")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    kql_docs: Optional[str] = Field(default=None, description="KQL documentation context for translation")
 
 
 class ClaudeAPIResponse(BaseModel):

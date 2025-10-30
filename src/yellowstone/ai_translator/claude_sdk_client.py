@@ -58,26 +58,41 @@ class ClaudeSDKClient:
         >>> print(response.content)
     """
 
-    SYSTEM_PROMPT = """You are an expert at translating natural language queries into Kusto Query Language (KQL) for graph databases.
+    # KQL Graph documentation will be fetched and injected per request
+    KQL_GRAPH_DOCS_URL = "https://learn.microsoft.com/en-us/kusto/query/graph-semantics-overview"
 
-Given a natural language query, generate the corresponding KQL query that:
-1. Uses correct graph syntax (nodes, edges, paths)
-2. Handles node and edge properties correctly
-3. Uses appropriate predicates and filters
-4. Returns results in the expected format
+    SYSTEM_PROMPT_TEMPLATE = """You are an expert at translating Cypher queries to Kusto Query Language (KQL) for Microsoft Sentinel.
 
-Return ONLY the KQL query, no explanations or markdown.
+CRITICAL KQL Graph Operators:
 
-Examples:
-- "Find all nodes with label 'Person'" -> "graph.nodes | where labels has 'Person'"
-- "Find nodes named 'Alice'" -> "graph.nodes | where properties.name == 'Alice'"
-- "Find edges of type 'KNOWS'" -> "graph.edges | where type == 'KNOWS'"
+make-graph Syntax:
+  Edges | make-graph SourceNodeId --> TargetNodeId [with Nodes1 on NodeId1]
+  - Creates transient graph from tabular data
+  - Specify source/target columns for edges
+  - Optionally join node property tables
+
+graph-match Syntax:
+  Graph | graph-match [cycles=all|none|unique_edges] Pattern [where Constraints] project Expression
+  - Pattern: (n:Label) for nodes, -[e:Type]-> for edges
+  - Variable length: -[e*3..5]- for repeated patterns
+  - Must include project clause for output
+
+{kql_docs}
+
+Translation Pattern:
+1. Source table (e.g., IdentityInfo, SignInLogs)
+2. make-graph with node ID: | make-graph UserId with_node_id=AccountObjectId
+3. Pattern match: | graph-match (u:User)-[r:LOGGED_IN]->(d:Device)
+4. Filters: | where u.dept == 'IT'
+5. Output: | project u.name, d.hostname
+
+Return ONLY the complete KQL query, no explanations or markdown.
 """
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "claude-3-5-sonnet-20241022",
+        model: str = "claude-sonnet-4-5-20250929",
         max_retries: int = 3,
         base_delay: float = 1.0,
         max_delay: float = 60.0,
@@ -264,8 +279,10 @@ Examples:
             raise ClaudeSDKError("Client not initialized - check API key")
 
         try:
-            # Use system prompt from request or default
-            system_prompt = request.system or self.SYSTEM_PROMPT
+            # Use system prompt from request or build from template with docs
+            system_prompt = request.system or self.SYSTEM_PROMPT_TEMPLATE.format(
+                kql_docs=request.kql_docs or "No additional KQL documentation provided."
+            )
 
             # Make API call
             message = await self._client.messages.create(
