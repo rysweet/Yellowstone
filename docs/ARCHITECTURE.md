@@ -22,41 +22,26 @@ This document provides a comprehensive architectural overview of Project Yellows
 
 ### High-Level Architecture
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                         Security Analyst                            │
-│                       (Cypher Query Input)                          │
-└───────────────────────────┬────────────────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                     Query Classification                            │
-│                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │  Fast Path   │  │   AI Path    │  │  Fallback    │            │
-│  │    (85%)     │  │    (10%)     │  │    (5%)      │            │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘            │
-└─────────┼──────────────────┼──────────────────┼───────────────────┘
-          │                  │                  │
-          ▼                  ▼                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Translation Engine                               │
-│                                                                       │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │  Parser → AST → Translator → KQL Generator                   │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                       │
-│  Schema Mapper: Cypher Labels ←→ Sentinel Tables                   │
-└───────────────────────────────┬───────────────────────────────────┘
-                                │
-                                ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                Microsoft Sentinel (KQL Execution)                   │
-│                                                                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
-│  │ IdentityInfo │  │  DeviceInfo  │  │SecurityEvent │            │
-│  └──────────────┘  └──────────────┘  └──────────────┘            │
-└────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Security Analyst<br/>Cypher Query Input] --> B[Query Classification]
+
+    B --> C1[Fast Path<br/>85%]
+    B --> C2[AI Path<br/>10%]
+    B --> C3[Fallback<br/>5%]
+
+    C1 --> D[Translation Engine]
+    C2 --> D
+    C3 --> D
+
+    D --> E[Parser → AST → Translator → KQL Generator]
+    E --> F[Schema Mapper:<br/>Cypher Labels ↔ Sentinel Tables]
+
+    F --> G[Microsoft Sentinel<br/>KQL Execution]
+
+    G --> H1[IdentityInfo]
+    G --> H2[DeviceInfo]
+    G --> H3[SecurityEvent]
 ```
 
 ### Component Responsibilities
@@ -82,64 +67,21 @@ This document provides a comprehensive architectural overview of Project Yellows
 
 ### Step-by-Step Flow
 
-```
-┌─────────────────┐
-│  Cypher Query   │  "MATCH (u:User)-[:LOGGED_IN]->(d:Device)
-│   (Input Text)  │   WHERE u.age > 25 RETURN u.name, d.name"
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│     Lexer       │  Tokenize into: MATCH, LPAREN, IDENTIFIER, COLON, etc.
-│  (Tokenization) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│     Parser      │  Build Abstract Syntax Tree (AST)
-│   (AST Gen)     │  Query(match_clause, where_clause, return_clause)
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Query Classifier│  Analyze complexity:
-│                 │  - Simple (1-2 hops) → Fast Path
-│                 │  - Complex (3+ hops) → AI Path
-│                 │  - Very complex → Fallback
-└────────┬────────┘
-         │
-         ├─────────────────────────────────────┐
-         │                                     │
-         ▼                                     ▼
-┌─────────────────┐                  ┌─────────────────┐
-│   Fast Path     │                  │    AI Path      │
-│  (Direct KQL)   │                  │ (Claude Agent)  │
-└────────┬────────┘                  └────────┬────────┘
-         │                                     │
-         └──────────────┬──────────────────────┘
-                        │
-                        ▼
-               ┌─────────────────┐
-               │ Schema Mapper   │  Map Cypher labels to Sentinel tables
-               │ (YAML Lookup)   │  User → IdentityInfo, Device → DeviceInfo
-               └────────┬────────┘
-                        │
-                        ▼
-               ┌─────────────────┐
-               │  KQL Generator  │  Generate make-graph + graph-match
-               │                 │
-               └────────┬────────┘
-                        │
-                        ▼
-               ┌─────────────────┐
-               │   Validator     │  Syntax, schema, balanced parens
-               └────────┬────────┘
-                        │
-                        ▼
-               ┌─────────────────┐
-               │  KQL Output     │  "IdentityInfo
-               │  (Executable)   │   | make-graph AccountObjectId..."
-               └─────────────────┘
+```mermaid
+flowchart TD
+    A[Cypher Query<br/>Input Text] --> B[Lexer<br/>Tokenization]
+    B --> C[Parser<br/>AST Generation]
+    C --> D[Query Classifier]
+
+    D --> E1[Fast Path<br/>Direct KQL]
+    D --> E2[AI Path<br/>Claude Agent]
+
+    E1 --> F[Schema Mapper<br/>YAML Lookup]
+    E2 --> F
+
+    F --> G[KQL Generator]
+    G --> H[Validator]
+    H --> I[KQL Output<br/>Executable]
 ```
 
 ### AST Transformation Example
@@ -185,29 +127,28 @@ IdentityInfo
 
 The schema mapper is consulted at every stage:
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Schema Mapper Flow                        │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Step 1: Load YAML Schema] --> B1[nodes: User → IdentityInfo]
+    A --> B2[edges: LOGGED_IN → join condition]
+    A --> B3[properties: u.age → IdentityInfo.age]
 
-Step 1: Load YAML Schema
-    │
-    ├─→ nodes: { User → IdentityInfo, Device → DeviceInfo }
-    ├─→ edges: { LOGGED_IN → join condition }
-    └─→ properties: { u.age → IdentityInfo.age }
+    B1 --> C[Step 2: Build Cache]
+    B2 --> C
+    B3 --> C
 
-Step 2: Build Cache (Fast Lookup)
-    │
-    ├─→ label_to_table: {"User": "IdentityInfo", ...}
-    ├─→ edge_to_join: {"LOGGED_IN": "condition", ...}
-    └─→ property_to_field: {"age": "AccountAge", ...}
+    C --> D1[label_to_table]
+    C --> D2[edge_to_join]
+    C --> D3[property_to_field]
 
-Step 3: Translation Time
-    │
-    ├─→ get_sentinel_table("User") → "IdentityInfo"
-    ├─→ get_node_id_field("User") → "AccountObjectId"
-    ├─→ get_property_field("User", "age") → "AccountAge"
-    └─→ get_relationship_join("LOGGED_IN") → join condition
+    D1 --> E[Step 3: Translation Time]
+    D2 --> E
+    D3 --> E
+
+    E --> F1[get_sentinel_table]
+    E --> F2[get_node_id_field]
+    E --> F3[get_property_field]
+    E --> F4[get_relationship_join]
 ```
 
 ---
@@ -422,35 +363,35 @@ edges:
 
 **Workflow**:
 
-```
-CypherTranslator.translate(cypher_query, context)
-    │
-    ├─→ 1. Parse Cypher to AST (parser.parse_query)
-    │
-    ├─→ 2. Classify complexity (_classify_query_complexity)
-    │      ├─ Fast Path: 1-2 hops, simple WHERE
-    │      ├─ AI Path: 3+ hops, complex patterns
-    │      └─ Fallback: Extremely complex
-    │
-    ├─→ 3. Translate based on strategy
-    │      ├─ _translate_fast_path(ast)
-    │      │   ├─ Generate make-graph preamble
-    │      │   ├─ Translate MATCH clause
-    │      │   ├─ Translate WHERE clause
-    │      │   └─ Translate RETURN clause
-    │      │
-    │      └─ (AI path not yet fully implemented)
-    │
-    ├─→ 4. Validate generated KQL (validate)
-    │      ├─ Syntax checks
-    │      ├─ Schema validation
-    │      └─ Balanced parentheses/brackets
-    │
-    └─→ 5. Return KQLQuery object
-            ├─ query: KQL string
-            ├─ strategy: FAST_PATH/AI_PATH/FALLBACK
-            ├─ confidence: 0.0-1.0
-            └─ estimated_execution_time_ms
+```mermaid
+flowchart TD
+    A[CypherTranslator.translate] --> B[1. Parse Cypher to AST]
+    B --> C[2. Classify complexity]
+
+    C --> D1[Fast Path:<br/>1-2 hops, simple WHERE]
+    C --> D2[AI Path:<br/>3+ hops, complex patterns]
+    C --> D3[Fallback:<br/>Extremely complex]
+
+    D1 --> E[3. Translate based on strategy]
+    D2 --> E
+    D3 --> E
+
+    E --> F[_translate_fast_path]
+    F --> F1[Generate make-graph preamble]
+    F1 --> F2[Translate MATCH clause]
+    F2 --> F3[Translate WHERE clause]
+    F3 --> F4[Translate RETURN clause]
+
+    F4 --> G[4. Validate generated KQL]
+    G --> G1[Syntax checks]
+    G1 --> G2[Schema validation]
+    G2 --> G3[Balanced parentheses/brackets]
+
+    G3 --> H[5. Return KQLQuery object]
+    H --> H1[query: KQL string]
+    H --> H2[strategy: FAST_PATH/AI_PATH/FALLBACK]
+    H --> H3[confidence: 0.0-1.0]
+    H --> H4[estimated_execution_time_ms]
 ```
 
 ---
@@ -469,37 +410,29 @@ CypherTranslator.translate(cypher_query, context)
 
 **Architecture**:
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    AI Translation Flow                        │
-└──────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Step 1: Query Classification] --> B{Complexity Check}
+    B -->|num_hops > 2?| C[Use AI Path]
+    B -->|nested WHERE?| C
+    B -->|variable-length paths?| C
 
-Step 1: Query Classification
-    │
-    ├─→ Check: num_hops > 2?
-    ├─→ Check: nested WHERE conditions?
-    ├─→ Check: variable-length paths?
-    └─→ Decision: Use AI Path
+    C --> D[Step 2: Build Context]
+    D --> D1[Load KQL graph docs<br/>128K tokens]
+    D --> D2[Include Sentinel schema mappings]
+    D --> D3[Add example translations]
+    D --> D4[Prepare system prompt]
 
-Step 2: Build Context
-    │
-    ├─→ Load KQL graph documentation (128K tokens)
-    ├─→ Include Sentinel schema mappings
-    ├─→ Add example translations
-    └─→ Prepare system prompt
+    D4 --> E[Step 3: Call Claude API]
+    E --> E1[Model: claude-sonnet-4-5]
+    E --> E2[Max tokens: 4096]
+    E --> E3[Temperature: 0.0]
+    E --> E4[Retry logic: 3 attempts]
 
-Step 3: Call Claude API
-    │
-    ├─→ Model: claude-sonnet-4-5-20250929
-    ├─→ Max tokens: Configurable (default 4096)
-    ├─→ Temperature: 0.0 (deterministic)
-    └─→ Retry logic: 3 attempts with exponential backoff
-
-Step 4: Parse Response
-    │
-    ├─→ Extract KQL query from response
-    ├─→ Validate syntax
-    └─→ Return KQLQuery with confidence score
+    E4 --> F[Step 4: Parse Response]
+    F --> F1[Extract KQL query]
+    F1 --> F2[Validate syntax]
+    F2 --> F3[Return KQLQuery with confidence]
 ```
 
 **System Prompt** (Simplified):
@@ -543,29 +476,23 @@ Table
 
 **Generation Logic** (from `main_translator.py:_generate_make_graph_preamble`):
 
-```
-Input: MATCH (u:User)-[:LOGGED_IN]->(d:Device)
+```mermaid
+flowchart TD
+    A[Input: MATCH pattern] --> B[Step 1: Extract labels]
+    B --> C[labels = User, Device]
 
-Step 1: Extract labels
-    labels = ["User", "Device"]
+    C --> D[Step 2: Map labels to tables]
+    D --> E1[User → IdentityInfo]
+    D --> E2[Device → DeviceInfo]
 
-Step 2: Map labels to tables
-    schema_mapper.get_sentinel_table("User") → "IdentityInfo"
-    schema_mapper.get_sentinel_table("Device") → "DeviceInfo"
+    E1 --> F[Step 3: Determine node ID field]
+    F --> G[Check for properties with id in name<br/>and required=true]
+    G --> H1[User → user_id → AccountObjectId]
+    G --> H2[Device → device_id → DeviceId]
 
-Step 3: Determine node ID field
-    For "User" → IdentityInfo:
-        Check for properties with "id" in name and required=true
-        Found: user_id → AccountObjectId
-
-    For "Device" → DeviceInfo:
-        Found: device_id → DeviceId
-
-Step 4: Generate make-graph
-    Primary table: IdentityInfo (first label encountered)
-    Output:
-        IdentityInfo
-        | make-graph AccountObjectId with_node_id=AccountObjectId
+    H1 --> I[Step 4: Generate make-graph]
+    I --> J[Primary table: IdentityInfo<br/>first label encountered]
+    J --> K[Output:<br/>IdentityInfo<br/>| make-graph AccountObjectId<br/>  with_node_id=AccountObjectId]
 ```
 
 **Multi-Table Support** (Future Enhancement):
@@ -664,27 +591,30 @@ IdentityInfo                                          ← Source table from sche
 
 **Step-by-Step Breakdown**:
 
-1. **Table Selection**:
-   - Label `User` → Schema lookup → `IdentityInfo`
+```mermaid
+sequenceDiagram
+    participant T as Translator
+    participant S as Schema Mapper
+    participant K as KQL Generator
 
-2. **make-graph Generation**:
-   - Node ID field: `User.user_id` → Schema lookup → `AccountObjectId`
-   - Statement: `make-graph AccountObjectId with_node_id=AccountObjectId`
+    T->>S: 1. Table Selection: User label
+    S-->>T: IdentityInfo
 
-3. **Pattern Translation**:
-   - `(u:User)` → `(u:User)` (direct copy)
-   - `-[:LOGGED_IN]->` → `-[:LOGGED_IN]->` (direct copy)
-   - `(d:Device)` → `(d:Device)` (direct copy)
+    T->>S: 2. Node ID field: User.user_id
+    S-->>T: AccountObjectId
 
-4. **WHERE Translation**:
-   - `u.age > 25` → `u.age > 25` (property access + comparison)
-   - `AND` → `and` (lowercase)
-   - `d.os_platform == "Windows"` → `d.os_platform == "Windows"` (string literal preserved)
+    T->>K: 3. Generate make-graph
+    K-->>T: make-graph AccountObjectId...
 
-5. **RETURN Translation**:
-   - `u.name, d.device_name` → `project u.name, d.device_name`
-   - `ORDER BY u.name ASC` → `| sort by u.name asc`
-   - `LIMIT 10` → `| limit 10`
+    T->>K: 4. Translate pattern
+    K-->>T: graph-match (u:User)-[:LOGGED_IN]->(d:Device)
+
+    T->>K: 5. Translate WHERE
+    K-->>T: where u.age > 25 and d.os_platform == "Windows"
+
+    T->>K: 6. Translate RETURN
+    K-->>T: project u.name, d.device_name<br/>| sort by u.name asc<br/>| limit 10
+```
 
 ---
 
@@ -818,214 +748,127 @@ IdentityInfo
 
 ### Request Flow
 
-```
-┌─────────────┐
-│   Client    │  HTTP POST /translate
-│  (Analyst)  │  { "query": "MATCH (u:User)...", "context": {...} }
-└──────┬──────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    API Gateway (FastAPI)                     │
-│  - Authentication (JWT)                                      │
-│  - Rate limiting                                             │
-│  - Request validation                                        │
-└──────┬──────────────────────────────────────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Security Layer                            │
-│  - Authorization check (RBAC)                                │
-│  - Query injection prevention                                │
-│  - Audit logging                                             │
-└──────┬──────────────────────────────────────────────────────┘
-       │
-       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   CypherTranslator                           │
-│  - Parse query (parser.parse_query)                          │
-│  - Classify complexity                                       │
-│  - Select translation strategy                               │
-└──────┬──────────────────────────────────────────────────────┘
-       │
-       ├────────────────────────────────────┐
-       │                                    │
-       ▼                                    ▼
-┌──────────────┐                   ┌──────────────┐
-│  Fast Path   │                   │   AI Path    │
-│  Translator  │                   │   (Claude)   │
-└──────┬───────┘                   └──────┬───────┘
-       │                                   │
-       └───────────────┬───────────────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │    Validator    │
-              │  (Syntax Check) │
-              └────────┬────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │   KQL Query     │
-              │   (Response)    │
-              └────────┬────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │  Return to      │
-              │  Client         │
-              │  { "kql": "..." }
-              └─────────────────┘
+```mermaid
+sequenceDiagram
+    participant C as Client (Analyst)
+    participant G as API Gateway (FastAPI)
+    participant S as Security Layer
+    participant T as CypherTranslator
+    participant F as Fast Path
+    participant A as AI Path (Claude)
+    participant V as Validator
+
+    C->>G: HTTP POST /translate<br/>{query, context}
+
+    G->>G: Authentication (JWT)
+    G->>G: Rate limiting
+    G->>G: Request validation
+
+    G->>S: Forward request
+    S->>S: Authorization check (RBAC)
+    S->>S: Query injection prevention
+    S->>S: Audit logging
+
+    S->>T: Translate query
+    T->>T: Parse query (parser.parse_query)
+    T->>T: Classify complexity
+    T->>T: Select translation strategy
+
+    alt Fast Path
+        T->>F: Translate
+        F-->>T: KQL
+    else AI Path
+        T->>A: Translate
+        A-->>T: KQL
+    end
+
+    T->>V: Validate KQL
+    V->>V: Syntax check
+    V->>V: Schema validation
+    V-->>T: Valid
+
+    T-->>S: KQLQuery object
+    S-->>G: Response
+    G-->>C: {kql: "..."}
 ```
 
 ---
 
 ### Translation Flow (Fast Path)
 
-```
-┌────────────────┐
-│ Cypher Query   │
-│ "MATCH (u:User)│
-│  RETURN u"     │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│           Lexer (Tokenization)              │
-│  Output: [Token(MATCH), Token(LPAREN), ...]│
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│          Parser (AST Generation)            │
-│  Output: Query(match_clause, return_clause)│
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│         Query Classifier                    │
-│  num_hops=0, has_complex_where=False        │
-│  Decision: FAST_PATH                        │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│     _generate_make_graph_preamble          │
-│  1. Extract labels: ["User"]               │
-│  2. Schema lookup: User → IdentityInfo     │
-│  3. Node ID: user_id → AccountObjectId     │
-│  Output: "IdentityInfo                     │
-│          | make-graph AccountObjectId..."  │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│     GraphMatchTranslator.translate         │
-│  Input: match_clause                       │
-│  Output: "graph-match (u:User)"            │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│     WhereClauseTranslator.translate        │
-│  Input: None (no WHERE clause)             │
-│  Output: "" (empty)                        │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│     ReturnClauseTranslator.translate       │
-│  Input: return_clause                      │
-│  Output: "project u"                       │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│         _assemble_query                    │
-│  Combine all parts with "\n| "             │
-│  Output:                                   │
-│    IdentityInfo                            │
-│    | make-graph AccountObjectId ...        │
-│    | graph-match (u:User)                  │
-│    | project u                             │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│           validate(kql)                    │
-│  - Syntax checks                           │
-│  - Balanced parens/brackets                │
-│  - Schema validation                       │
-│  Result: True                              │
-└───────┬────────────────────────────────────┘
-        │
-        ▼
-┌────────────────────────────────────────────┐
-│          KQLQuery Object                   │
-│  {                                         │
-│    query: "...",                           │
-│    strategy: FAST_PATH,                    │
-│    confidence: 0.95,                       │
-│    estimated_execution_time_ms: None       │
-│  }                                         │
-└────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Cypher Query] --> B[Lexer - Tokenization]
+    B --> C[Parser - AST Generation]
+    C --> D[Query Classifier]
+
+    D --> E{Complexity Analysis}
+    E -->|num_hops=0<br/>simple WHERE| F[FAST_PATH]
+
+    F --> G[_generate_make_graph_preamble]
+    G --> G1[1. Extract labels: User]
+    G1 --> G2[2. Schema lookup: User → IdentityInfo]
+    G2 --> G3[3. Node ID: user_id → AccountObjectId]
+    G3 --> G4[Output: make-graph statement]
+
+    G4 --> H[GraphMatchTranslator.translate]
+    H --> H1[Input: match_clause]
+    H1 --> H2[Output: graph-match pattern]
+
+    H2 --> I[WhereClauseTranslator.translate]
+    I --> I1[Input: None - no WHERE]
+    I1 --> I2[Output: empty]
+
+    I2 --> J[ReturnClauseTranslator.translate]
+    J --> J1[Input: return_clause]
+    J1 --> J2[Output: project statement]
+
+    J2 --> K[_assemble_query]
+    K --> K1[Combine all parts<br/>with pipe operators]
+
+    K1 --> L[validate]
+    L --> L1[Syntax checks]
+    L1 --> L2[Balanced parens/brackets]
+    L2 --> L3[Schema validation]
+    L3 --> L4[Result: True]
+
+    L4 --> M[KQLQuery Object]
+    M --> M1[query: KQL string]
+    M --> M2[strategy: FAST_PATH]
+    M --> M3[confidence: 0.95]
+    M --> M4[estimated_execution_time_ms: None]
 ```
 
 ---
 
 ### Error Handling Flow
 
-```
-┌────────────────┐
-│ Query Input    │
-└───────┬────────┘
-        │
-        ▼
-┌────────────────────────────────┐
-│      Try: Parse Query          │
-└───────┬────────────────────────┘
-        │
-        ├─ Success ─────────────────────────────┐
-        │                                       │
-        ├─ Error: SyntaxError ──────────┐      │
-        │                                │      │
-        └─ Error: Other Exception ───┐  │      │
-                                     │  │      │
-                                     ▼  ▼      ▼
-                                ┌──────────────────┐
-                                │  Error Handler   │
-                                │                  │
-                                │  SyntaxError:    │
-                                │    → 400 Bad     │
-                                │       Request    │
-                                │                  │
-                                │  ValueError:     │
-                                │    → 422         │
-                                │       Unproc.    │
-                                │                  │
-                                │  Other:          │
-                                │    → 500 Server  │
-                                │       Error      │
-                                └────────┬─────────┘
-                                         │
-                                         ▼
-                                ┌──────────────────┐
-                                │  Audit Log       │
-                                │  - User          │
-                                │  - Query         │
-                                │  - Error         │
-                                │  - Timestamp     │
-                                └────────┬─────────┘
-                                         │
-                                         ▼
-                                ┌──────────────────┐
-                                │  Return Error    │
-                                │  Response        │
-                                │  {               │
-                                │   "error": "...",│
-                                │   "code": 400    │
-                                │  }               │
-                                └──────────────────┘
+```mermaid
+flowchart TD
+    A[Query Input] --> B{Try: Parse Query}
+
+    B -->|Success| C[Continue Processing]
+    B -->|SyntaxError| D[Error Handler]
+    B -->|Other Exception| D
+
+    D --> E{Error Type}
+
+    E -->|SyntaxError| F1[400 Bad Request]
+    E -->|ValueError| F2[422 Unprocessable Entity]
+    E -->|Other| F3[500 Server Error]
+
+    F1 --> G[Audit Log]
+    F2 --> G
+    F3 --> G
+
+    G --> G1[Log: User]
+    G --> G2[Log: Query]
+    G --> G3[Log: Error]
+    G --> G4[Log: Timestamp]
+
+    G4 --> H[Return Error Response]
+    H --> H1[error: message]
+    H --> H2[code: HTTP status]
 ```
 
 **Error Types**:
@@ -1095,39 +938,38 @@ IdentityInfo
 
 ### Schema Loading Process
 
-```
-┌──────────────────────────────────────────────────────┐
-│               Schema Loading Flow                     │
-└──────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[Step 1: Initialize SchemaMapper] --> B{schema_path = None?}
+    B -->|Yes| C[Use default:<br/>default_sentinel_schema.yaml]
+    B -->|No| D[Use provided path]
 
-Step 1: Initialize SchemaMapper
-    │
-    └─→ schema_path = None? Use default: default_sentinel_schema.yaml
+    C --> E[Step 2: Load YAML File]
+    D --> E
 
-Step 2: Load YAML File
-    │
-    ├─→ Open file: default_sentinel_schema.yaml
-    ├─→ Parse YAML: yaml.safe_load()
-    └─→ Create SchemaMapping object
+    E --> F[Open file]
+    F --> G[Parse YAML: yaml.safe_load]
+    G --> H[Create SchemaMapping object]
 
-Step 3: Validate Schema
-    │
-    ├─→ Check required fields (version, nodes, edges, tables)
-    ├─→ Validate node mappings
-    ├─→ Validate edge mappings
-    ├─→ Check referential integrity
-    └─→ Return validation result
+    H --> I[Step 3: Validate Schema]
+    I --> J[Check required fields:<br/>version, nodes, edges, tables]
+    J --> K[Validate node mappings]
+    K --> L[Validate edge mappings]
+    L --> M[Check referential integrity]
+    M --> N[Return validation result]
 
-Step 4: Build Cache
-    │
-    ├─→ label_to_table: {"User": "IdentityInfo", ...}
-    ├─→ table_to_fields: {"IdentityInfo": ["AccountObjectId", ...], ...}
-    ├─→ edge_to_join: {"LOGGED_IN": {...}, ...}
-    └─→ property_to_field: {("User", "email"): "AccountUpn", ...}
+    N --> O[Step 4: Build Cache]
+    O --> P1[label_to_table:<br/>User → IdentityInfo]
+    O --> P2[table_to_fields:<br/>IdentityInfo → fields]
+    O --> P3[edge_to_join:<br/>LOGGED_IN → condition]
+    O --> P4[property_to_field:<br/>User, email → AccountUpn]
 
-Step 5: Ready for Translation
-    │
-    └─→ Fast lookups via cache during translation
+    P1 --> Q[Step 5: Ready for Translation]
+    P2 --> Q
+    P3 --> Q
+    P4 --> Q
+
+    Q --> R[Fast lookups via cache<br/>during translation]
 ```
 
 ---
