@@ -71,21 +71,17 @@ IdentityInfo
 
 ## Architecture
 
-```
-Cypher Query
-     |
-     v
-Parser (ANTLR + openCypher grammar)
-     |
-     v
-Translation Routing
-     |
-     +-- Fast Path (85%): Direct KQL operators
-     +-- AI Path (10%): Claude SDK for complex patterns
-     +-- Fallback (5%): Join-based translation
-     |
-     v
-KQL Output -> Microsoft Sentinel
+```mermaid
+flowchart TD
+    A[Cypher Query] --> B[Parser]
+    B --> C{Translation Routing}
+    C -->|85% Fast Path| D[Direct KQL Operators]
+    C -->|10% AI Path| E[Claude SDK]
+    C -->|5% Fallback| F[Join-based Translation]
+    D --> G[KQL Output]
+    E --> G
+    F --> G
+    G --> H[Microsoft Sentinel]
 ```
 
 **Key Components:**
