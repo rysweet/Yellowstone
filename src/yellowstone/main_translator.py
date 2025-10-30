@@ -1,5 +1,5 @@
 """
-Main Cypher-to-KQL translation engine.
+Main translator for Cypher and Gremlin to KQL.
 """
 
 from typing import Optional
@@ -11,6 +11,14 @@ from .schema.schema_mapper import SchemaMapper
 from .translator.graph_match import GraphMatchTranslator
 from .translator.where_clause import WhereClauseTranslator
 from .translator.return_clause import ReturnClauseTranslator
+
+# Gremlin support (optional)
+try:
+    from .gremlin.parser import parse_gremlin
+    from .gremlin.cypher_bridge import translate_gremlin_to_cypher
+    GREMLIN_AVAILABLE = True
+except ImportError:
+    GREMLIN_AVAILABLE = False
 
 
 class TranslationError(Exception):
@@ -68,8 +76,19 @@ class CypherTranslator:
             TranslationError: If translation fails
         """
         try:
-            # Step 1: Parse Cypher query into AST
-            ast = parse_query(cypher.query)
+            # Step 1: Detect language and parse to AST
+            query_str = cypher.query.strip()
+
+            if query_str.startswith("g.") or query_str.startswith("g "):
+                # Gremlin query - parse and bridge to Cypher AST
+                if not GREMLIN_AVAILABLE:
+                    raise TranslationError("Gremlin support not available")
+
+                gremlin_ast = parse_gremlin(query_str)
+                ast = translate_gremlin_to_cypher(gremlin_ast)
+            else:
+                # Cypher query - parse directly
+                ast = parse_query(query_str)
 
             # Step 2: Determine translation strategy
             strategy = self._classify_query_complexity(ast)
