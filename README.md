@@ -9,7 +9,10 @@ Cypher-to-KQL translator for Microsoft Sentinel, enabling graph query capabiliti
 
 ## Overview
 
-Yellowstone translates Cypher graph queries into KQL (Kusto Query Language) for Microsoft Sentinel. Security analysts can use familiar graph query syntax to investigate relationships between entities like users, devices, and security events.
+Yellowstone translates graph queries (Cypher and Gremlin) into KQL (Kusto Query Language) for Microsoft Sentinel. Security analysts can use familiar graph query syntax to investigate relationships between entities like users, devices, and security events.
+
+**Supported Languages**: Cypher, Gremlin
+**Status**: Core translation functional for both languages.
 
 ## Quick Start
 
@@ -30,17 +33,22 @@ pip install -e .
 ### Basic Usage
 
 ```python
-from yellowstone.parser import parse_cypher
-from yellowstone.translator import CypherToKQLTranslator
+from yellowstone.models import CypherQuery, TranslationContext
+from yellowstone.main_translator import CypherTranslator
 
-# Parse Cypher query
-cypher = "MATCH (u:User)-[:LOGGED_IN]->(d:Device) WHERE u.age > 25 RETURN u.name"
-ast = parse_cypher(cypher)
+# Works with both Cypher and Gremlin
+cypher_query = "MATCH (u:User) WHERE u.age > 25 RETURN u.name"
+gremlin_query = "g.V().hasLabel('User').has('age',gt(25)).values('name')"
 
-# Translate to KQL
-translator = CypherToKQLTranslator()
-result = translator.translate(ast)
+translator = CypherTranslator()
+context = TranslationContext(user_id="analyst", tenant_id="org", permissions=[])
 
+# Translate Cypher
+result = translator.translate(CypherQuery(query=cypher_query), context)
+print(result.query)
+
+# Translate Gremlin (automatically detected)
+result = translator.translate(CypherQuery(query=gremlin_query), context)
 print(result.query)
 ```
 
