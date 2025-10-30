@@ -9,7 +9,7 @@ Cypher-to-KQL translator for Microsoft Sentinel, enabling graph query capabiliti
 
 Yellowstone translates Cypher graph queries into KQL (Kusto Query Language) for Microsoft Sentinel. Security analysts can use familiar graph query syntax to investigate relationships between entities like users, devices, and security events.
 
-**Status**: Core translation functional and validated against Azure Sentinel workspaces.
+**Status**: Core translation functional.
 
 ## Quick Start
 
@@ -154,31 +154,16 @@ IdentityInfo
 
 ## Testing
 
-### Run All Tests
-
 ```bash
-# Unit tests
-pytest src/yellowstone
+# Run all tests
+pytest
 
-# Integration tests
-pytest tests/integration
-
-# With coverage
+# Run with coverage
 pytest --cov=src/yellowstone --cov-report=html
+
+# Run specific test suite
+pytest tests/integration
 ```
-
-### Test Results
-
-- **Unit tests**: 35/35 passing
-- **Integration tests**: Validated against Azure Log Analytics workspaces
-- **Azure validation**: Generated KQL executes successfully (~$0.60 test cost)
-
-### Validation Status
-
-The translator has been validated against live Azure Sentinel workspaces:
-- KQL syntax verification: PASSED
-- Query execution: PASSED
-- Result parsing: PASSED
 
 ## Documentation
 
