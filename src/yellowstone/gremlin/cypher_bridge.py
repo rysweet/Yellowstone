@@ -13,15 +13,11 @@ Translation Strategy:
 4. Build RETURN Clause - Convert projection steps to Cypher return items
 
 Example:
-    >>> from yellowstone.gremlin.ast_nodes import GremlinTraversal, VertexStep, FilterStep
+    >>> from yellowstone.gremlin.parser import parse_gremlin
     >>> from yellowstone.gremlin.cypher_bridge import translate_gremlin_to_cypher
     >>>
     >>> # g.V().hasLabel('User').has('age', 30)
-    >>> traversal = GremlinTraversal(steps=[
-    ...     VertexStep(),
-    ...     FilterStep(predicate='hasLabel', args=['User']),
-    ...     FilterStep(predicate='has', args=['age', 30])
-    ... ])
+    >>> traversal = parse_gremlin("g.V().hasLabel('User').has('age',30)")
     >>>
     >>> query = translate_gremlin_to_cypher(traversal)
     >>> # Returns: MATCH (v:User) WHERE v.age = 30 RETURN v
@@ -279,7 +275,7 @@ def _process_filter_step(step: FilterStep, ctx: TranslationContext) -> None:
 
     else:
         raise UnsupportedPatternError(
-            f"Filter predicate '{step.predicate}' not yet supported. "
+            f"Filter predicate '{step.filter_type}' not yet supported. "
             f"Supported: hasLabel, has"
         )
 
@@ -503,9 +499,9 @@ def _build_return_clause(ctx: TranslationContext) -> ReturnClause:
             'expression': {
                 'type': 'property',
                 'variable': current_var,
-                'property': ctx.order_by.property
+                'property': ctx.order_by.order_by
             },
-            'direction': 'ASC' if ctx.order_by.ascending else 'DESC'
+            'direction': 'ASC' if ctx.order_by.order == 'asc' else 'DESC'
         }]
 
     return ReturnClause(

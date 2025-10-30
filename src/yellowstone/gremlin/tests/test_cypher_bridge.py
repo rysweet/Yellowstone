@@ -6,7 +6,7 @@ Focus is on contract fulfillment - inputs/outputs match specifications.
 """
 
 import pytest
-from yellowstone.gremlin.ast_nodes import (
+from yellowstone.gremlin.ast import (
     GremlinTraversal,
     VertexStep,
     EdgeStep,
@@ -15,6 +15,7 @@ from yellowstone.gremlin.ast_nodes import (
     ProjectionStep,
     LimitStep,
     OrderStep,
+    GremlinValue,
 )
 
 from yellowstone.gremlin.cypher_bridge import (
@@ -42,7 +43,7 @@ class TestBasicTranslations:
         """Test: g.V().hasLabel('User') -> MATCH (v:User) RETURN v"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User'])
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -96,8 +97,8 @@ class TestFilterTranslations:
         """Test: g.V().hasLabel('User').has('age', 30) -> MATCH (v:User) WHERE v.age = 30 RETURN v"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User']),
-            FilterStep(predicate='has', args=['age', 30])
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string')),
+            FilterStep(filter_type='has', property_name='age', value=GremlinValue(value=30, value_type='number'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -121,8 +122,8 @@ class TestFilterTranslations:
         """Test: g.V().hasLabel('User').has('name', 'John')"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User']),
-            FilterStep(predicate='has', args=['name', 'John'])
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string')),
+            FilterStep(filter_type='has', property_name='name', value=GremlinValue(value='John', value_type='string'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -135,7 +136,7 @@ class TestFilterTranslations:
         """Test: g.V().has('active', True)"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='has', args=['active', True])
+            FilterStep(filter_type='has', property_name='active', value=GremlinValue(value=True, value_type='boolean'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -148,8 +149,8 @@ class TestFilterTranslations:
         """Test: g.V().has('age', 30).has('name', 'John') -> Multiple conditions with AND"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='has', args=['age', 30]),
-            FilterStep(predicate='has', args=['name', 'John'])
+            FilterStep(filter_type='has', property_name='age', value=GremlinValue(value=30, value_type='number')),
+            FilterStep(filter_type='has', property_name='name', value=GremlinValue(value='John', value_type='string'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -175,8 +176,8 @@ class TestTraversalTranslations:
         """Test: g.V().hasLabel('User').out('OWNS') -> MATCH (v0:User)-[:OWNS]->(v1) RETURN v1"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User']),
-            TraversalStep(direction='out', edge_label='OWNS')
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string')),
+            TraversalStep(direction='out', traversal_type='vertex', edge_label='OWNS')
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -206,8 +207,8 @@ class TestTraversalTranslations:
         """Test: g.V().hasLabel('Item').in('OWNS') -> incoming relationship"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['Item']),
-            TraversalStep(direction='in', edge_label='OWNS')
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='Item', value_type='string')),
+            TraversalStep(direction='in', traversal_type='vertex', edge_label='OWNS')
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -220,7 +221,7 @@ class TestTraversalTranslations:
         """Test: g.V().both('KNOWS') -> undirected relationship"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            TraversalStep(direction='both', edge_label='KNOWS')
+            TraversalStep(direction='both', traversal_type='vertex', edge_label='KNOWS')
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -233,7 +234,7 @@ class TestTraversalTranslations:
         """Test: g.V().out() -> relationship without type"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            TraversalStep(direction='out', edge_label=None)
+            TraversalStep(direction='out', traversal_type='vertex', edge_label=None)
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -245,8 +246,8 @@ class TestTraversalTranslations:
         """Test: g.V().out('OWNS').out('HAS_PART') -> (v0)-[:OWNS]->(v1)-[:HAS_PART]->(v2)"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            TraversalStep(direction='out', edge_label='OWNS'),
-            TraversalStep(direction='out', edge_label='HAS_PART')
+            TraversalStep(direction='out', traversal_type='vertex', edge_label='OWNS'),
+            TraversalStep(direction='out', traversal_type='vertex', edge_label='HAS_PART')
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -273,8 +274,8 @@ class TestProjectionTranslations:
         """Test: g.V().hasLabel('User').values('name') -> RETURN v.name"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User']),
-            ProjectionStep(type='values', properties=['name'])
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string')),
+            ProjectionStep(projection_type='values', property_names=['name'])
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -290,7 +291,7 @@ class TestProjectionTranslations:
         """Test: g.V().values('name', 'age') -> RETURN v.name, v.age"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            ProjectionStep(type='values', properties=['name', 'age'])
+            ProjectionStep(projection_type='values', property_names=['name', 'age'])
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -325,7 +326,7 @@ class TestModifiers:
         """Test: g.V().order().by('name') -> ORDER BY v.name ASC"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            OrderStep(property='name', ascending=True)
+            OrderStep(order_by='name', order='asc')
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -340,7 +341,7 @@ class TestModifiers:
         """Test: g.V().order().by('age', desc) -> ORDER BY v.age DESC"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            OrderStep(property='age', ascending=False)
+            OrderStep(order_by='age', order='desc')
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -352,7 +353,7 @@ class TestModifiers:
         """Test: g.V().order().by('name').limit(5) -> ORDER BY ... LIMIT ..."""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            OrderStep(property='name', ascending=True),
+            OrderStep(order_by='name', order='asc'),
             LimitStep(count=5)
         ])
 
@@ -369,10 +370,10 @@ class TestComplexQueries:
         """Test: g.V().hasLabel('User').has('age', 30).out('OWNS').values('name')"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User']),
-            FilterStep(predicate='has', args=['age', 30]),
-            TraversalStep(direction='out', edge_label='OWNS'),
-            ProjectionStep(type='values', properties=['name'])
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string')),
+            FilterStep(filter_type='has', property_name='age', value=GremlinValue(value=30, value_type='number')),
+            TraversalStep(direction='out', traversal_type='vertex', edge_label='OWNS'),
+            ProjectionStep(projection_type='values', property_names=['name'])
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -400,11 +401,11 @@ class TestComplexQueries:
         """Test query with all features: filters, traversal, projection, order, limit"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User']),
-            FilterStep(predicate='has', args=['active', True]),
-            TraversalStep(direction='out', edge_label='OWNS'),
-            ProjectionStep(type='values', properties=['name']),
-            OrderStep(property='name', ascending=True),
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string')),
+            FilterStep(filter_type='has', property_name='active', value=GremlinValue(value=True, value_type='boolean')),
+            TraversalStep(direction='out', traversal_type='vertex', edge_label='OWNS'),
+            ProjectionStep(projection_type='values', property_names=['name']),
+            OrderStep(order_by='name', order='asc'),
             LimitStep(count=10)
         ])
 
@@ -440,7 +441,7 @@ class TestErrorHandling:
     def test_invalid_starting_step(self):
         """Test that non-V/E starting step raises error"""
         traversal = GremlinTraversal(steps=[
-            FilterStep(predicate='hasLabel', args=['User'])
+            FilterStep(filter_type='hasLabel', value=GremlinValue(value='User', value_type='string'))
         ])
 
         with pytest.raises(TranslationError, match="must start with V\\(\\) or E\\(\\)"):
@@ -450,7 +451,7 @@ class TestErrorHandling:
         """Test that unsupported filter predicate raises error"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='where', args=[])
+            FilterStep(filter_type='where', value=None)
         ])
 
         with pytest.raises(UnsupportedPatternError, match="Filter predicate 'where'"):
@@ -460,7 +461,7 @@ class TestErrorHandling:
         """Test that unsupported traversal direction raises error"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            TraversalStep(direction='outE', edge_label='KNOWS')
+            TraversalStep(direction='outE', traversal_type='edge', edge_label='KNOWS')
         ])
 
         with pytest.raises(UnsupportedPatternError, match="Traversal direction 'outE'"):
@@ -470,7 +471,7 @@ class TestErrorHandling:
         """Test that unsupported projection type raises error"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            ProjectionStep(type='project', properties=['name'])
+            ProjectionStep(projection_type='project', property_names=['name'])
         ])
 
         with pytest.raises(UnsupportedPatternError, match="Projection type 'project'"):
@@ -480,8 +481,8 @@ class TestErrorHandling:
         """Test that multiple projection steps raise error"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            ProjectionStep(type='values', properties=['name']),
-            ProjectionStep(type='values', properties=['age'])
+            ProjectionStep(projection_type='values', property_names=['name']),
+            ProjectionStep(projection_type='values', property_names=['age'])
         ])
 
         with pytest.raises(UnsupportedPatternError, match="Multiple projection steps"):
@@ -499,23 +500,23 @@ class TestErrorHandling:
             translate_gremlin_to_cypher(traversal)
 
     def test_hasLabel_wrong_arg_count(self):
-        """Test that hasLabel with wrong number of args raises error"""
+        """Test that hasLabel without value raises error"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='hasLabel', args=['User', 'Admin'])
+            FilterStep(filter_type='hasLabel', value=None)
         ])
 
-        with pytest.raises(TranslationError, match="hasLabel requires exactly 1 argument"):
+        with pytest.raises(TranslationError, match="hasLabel requires a label argument"):
             translate_gremlin_to_cypher(traversal)
 
     def test_has_wrong_arg_count(self):
-        """Test that has with wrong number of args raises error"""
+        """Test that has without property name raises error"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='has', args=['name'])
+            FilterStep(filter_type='has', property_name=None, value=GremlinValue(value='test', value_type='string'))
         ])
 
-        with pytest.raises(TranslationError, match="has requires exactly 2 arguments"):
+        with pytest.raises(TranslationError, match="has requires a property name"):
             translate_gremlin_to_cypher(traversal)
 
 
@@ -537,7 +538,7 @@ class TestEdgeCases:
         """Test has() with null value"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='has', args=['name', None])
+            FilterStep(filter_type='has', property_name='name', value=GremlinValue(value=None, value_type='null'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
@@ -550,7 +551,7 @@ class TestEdgeCases:
         """Test has() with float value"""
         traversal = GremlinTraversal(steps=[
             VertexStep(),
-            FilterStep(predicate='has', args=['rating', 4.5])
+            FilterStep(filter_type='has', property_name='rating', value=GremlinValue(value=4.5, value_type='number'))
         ])
 
         query = translate_gremlin_to_cypher(traversal)
