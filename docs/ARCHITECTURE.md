@@ -1,272 +1,396 @@
-# Yellowstone Architecture Guide
+# Project Yellowstone Architecture
 
-## Overview
+**Cypher Query Engine for Microsoft Sentinel Graph**
 
-Yellowstone is a production-grade Cypher query engine for Microsoft Sentinel Graph that translates Cypher queries to KQL (Kusto Query Language). The system uses a three-tier translation strategy optimized for security investigation workflows.
+This document provides a comprehensive architectural overview of Project Yellowstone, including system design, component interactions, data flows, and translation pipelines.
 
-## System Architecture
+---
+
+## Table of Contents
+
+1. [System Overview](#system-overview)
+2. [Translation Pipeline](#translation-pipeline)
+3. [Component Architecture](#component-architecture)
+4. [KQL Generation](#kql-generation)
+5. [AI Enhancement](#ai-enhancement)
+6. [Data Flow Diagrams](#data-flow-diagrams)
+7. [Schema Mapping](#schema-mapping)
+
+---
+
+## System Overview
+
+### High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Cypher Query Input                          │
-└─────────────────────────────────┬───────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Query Classification                          │
-│  • Parse and analyze Cypher AST                                 │
-│  • Determine translation complexity                             │
-│  • Route to appropriate translation path                        │
-└──────┬──────────────────────────┬──────────────────┬────────────┘
-       │                          │                  │
-       ▼ (85% of queries)         ▼ (10%)            ▼ (5%)
-┌──────────────────┐    ┌────────────────────┐  ┌─────────────┐
-│  Fast Path       │    │  AI-Enhanced Path  │  │ Fallback    │
-│                  │    │                    │  │ Path        │
-│ Direct KQL Graph │    │ Claude Agent SDK   │  │ Join-Based  │
-│ Operators        │    │ for complex        │  │ Translation │
-│ Translation      │    │ patterns           │  │             │
-└────────┬─────────┘    └────────┬───────────┘  └──────┬──────┘
-         │                       │                     │
-         └───────────────────┬───┴──────────┬──────────┘
-                             │              │
-                             ▼              ▼
-                   ┌──────────────────────────────┐
-                   │   KQL Query Optimization     │
-                   │  • Graph simplification      │
-                   │  • Join order optimization   │
-                   │  • Predicate pushdown        │
-                   └──────────┬───────────────────┘
-                              │
-                              ▼
-                   ┌──────────────────────────────┐
-                   │   Microsoft Sentinel         │
-                   │   (KQL Execution)            │
-                   └──────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│                         Security Analyst                            │
+│                       (Cypher Query Input)                          │
+└───────────────────────────┬────────────────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                     Query Classification                            │
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
+│  │  Fast Path   │  │   AI Path    │  │  Fallback    │            │
+│  │    (85%)     │  │    (10%)     │  │    (5%)      │            │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘            │
+└─────────┼──────────────────┼──────────────────┼───────────────────┘
+          │                  │                  │
+          ▼                  ▼                  ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Translation Engine                               │
+│                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │  Parser → AST → Translator → KQL Generator                   │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                       │
+│  Schema Mapper: Cypher Labels ←→ Sentinel Tables                   │
+└───────────────────────────────┬───────────────────────────────────┘
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────┐
+│                Microsoft Sentinel (KQL Execution)                   │
+│                                                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │
+│  │ IdentityInfo │  │  DeviceInfo  │  │SecurityEvent │            │
+│  └──────────────┘  └──────────────┘  └──────────────┘            │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-## Three-Tier Translation System
+### Component Responsibilities
 
-### 1. Fast Path (85% of Queries)
+| Component | Responsibility | Technology |
+|-----------|---------------|------------|
+| **Parser** | Tokenize and parse Cypher into AST | Recursive Descent Parser |
+| **Schema Mapper** | Map Cypher labels to Sentinel tables | YAML-based mapping |
+| **Translator** | Convert AST to KQL graph operators | Python + Pattern Matching |
+| **AI Translator** | Handle complex queries via Claude | Claude Sonnet 4.5 |
+| **Validator** | Ensure generated KQL is valid | Syntax + Schema checks |
 
-The fast path handles straightforward Cypher queries using direct KQL graph operator translation with no ambiguity or complex patterns.
+### Key Design Principles
 
-**Characteristics:**
-- Simple graph patterns (1-3 hops typically)
-- Fixed-length paths only
-- Standard WHERE conditions
-- Basic RETURN projections
-- High confidence (>95%)
-- Sub-millisecond overhead
+1. **Native Graph Operators**: Leverage KQL's `make-graph` and `graph-match` for performance
+2. **Schema-Driven**: YAML schema defines all Cypher-to-Sentinel mappings
+3. **Three-Tier Translation**: Fast path, AI path, and fallback for comprehensive coverage
+4. **Validation First**: Every generated query is validated before execution
 
-**Translation Flow:**
+---
+
+## Translation Pipeline
+
+### Step-by-Step Flow
+
 ```
-Cypher: MATCH (u:User)-[:LOGGED_IN]->(d:Device) WHERE u.name = 'Alice' RETURN u, d
-
-Parser → AST → Classification (Fast Path) → Component Translators
-
-Graph Match Translator:
-  (u:User)-[:LOGGED_IN]->(d:Device)
-  ↓
-  graph-match (u:User)-[:LOGGED_IN]->(d:Device)
-
-Where Clause Translator:
-  u.name = 'Alice'
-  ↓
-  where u.name == 'Alice'
-
-Return Translator:
-  u, d
-  ↓
-  project u, d
-
-KQL Output:
-  graph-match (u:User)-[:LOGGED_IN]->(d:Device)
-  | where u.name == 'Alice'
-  | project u, d
+┌─────────────────┐
+│  Cypher Query   │  "MATCH (u:User)-[:LOGGED_IN]->(d:Device)
+│   (Input Text)  │   WHERE u.age > 25 RETURN u.name, d.name"
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│     Lexer       │  Tokenize into: MATCH, LPAREN, IDENTIFIER, COLON, etc.
+│  (Tokenization) │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│     Parser      │  Build Abstract Syntax Tree (AST)
+│   (AST Gen)     │  Query(match_clause, where_clause, return_clause)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Query Classifier│  Analyze complexity:
+│                 │  - Simple (1-2 hops) → Fast Path
+│                 │  - Complex (3+ hops) → AI Path
+│                 │  - Very complex → Fallback
+└────────┬────────┘
+         │
+         ├─────────────────────────────────────┐
+         │                                     │
+         ▼                                     ▼
+┌─────────────────┐                  ┌─────────────────┐
+│   Fast Path     │                  │    AI Path      │
+│  (Direct KQL)   │                  │ (Claude Agent)  │
+└────────┬────────┘                  └────────┬────────┘
+         │                                     │
+         └──────────────┬──────────────────────┘
+                        │
+                        ▼
+               ┌─────────────────┐
+               │ Schema Mapper   │  Map Cypher labels to Sentinel tables
+               │ (YAML Lookup)   │  User → IdentityInfo, Device → DeviceInfo
+               └────────┬────────┘
+                        │
+                        ▼
+               ┌─────────────────┐
+               │  KQL Generator  │  Generate make-graph + graph-match
+               │                 │
+               └────────┬────────┘
+                        │
+                        ▼
+               ┌─────────────────┐
+               │   Validator     │  Syntax, schema, balanced parens
+               └────────┬────────┘
+                        │
+                        ▼
+               ┌─────────────────┐
+               │  KQL Output     │  "IdentityInfo
+               │  (Executable)   │   | make-graph AccountObjectId..."
+               └─────────────────┘
 ```
 
-**Performance:**
-- Confidence: 95-99%
-- Execution time: <1ms (translation only)
-- Feature coverage: 90%+ of common patterns
+### AST Transformation Example
 
-### 2. AI-Enhanced Path (10% of Queries)
-
-The AI path uses Claude Agent SDK to handle complex patterns, ambiguous semantics, or non-standard Cypher features that require semantic understanding.
-
-**Triggers:**
-- Variable-length paths with complex constraints
-- Complex aggregations and grouping
-- Subquery patterns
-- Existential conditions
-- Advanced pattern matching
-- Schema-dependent transformations
-
-**Translation Flow:**
-```
-Complex Cypher Query
-      ↓
-Classification (Complexity > Threshold)
-      ↓
-Prepare Translation Context:
-  • Parsed AST
-  • Schema mappings
-  • Available KQL operators
-  • Translation constraints
-      ↓
-Claude Agent SDK:
-  • Analyze pattern semantics
-  • Generate multiple translation strategies
-  • Verify KQL syntax
-  • Optimize for Sentinel
-      ↓
-Validate & Execute
-      ↓
-KQL Output
+**Input Cypher**:
+```cypher
+MATCH (u:User)-[:LOGGED_IN]->(d:Device) WHERE u.age > 25 RETURN u.name
 ```
 
-**Features:**
-- Semantic understanding of patterns
-- Multi-strategy exploration
-- Optimization suggestions
-- Confidence-based fallback
-- Audit trail of reasoning
-
-**Performance:**
-- Confidence: 70-95% (varies by complexity)
-- Execution time: 100-5000ms (includes API calls)
-- Feature coverage: 95%+ of advanced patterns
-
-### 3. Fallback Path (5% of Queries)
-
-The fallback path handles queries that cannot be translated via fast path or AI path, using traditional SQL-like join translations.
-
-**Use Cases:**
-- Unsupported Cypher features
-- Ambiguous semantic patterns
-- Backward compatibility
-- Complex analytical queries
-
-**Characteristics:**
-- Join-based table navigation
-- Manual cardinality estimation
-- Higher query cost
-- Lower optimization potential
-- Confidence: 50-80%
-
-## Core Components
-
-### 1. Parser Module (`yellowstone.parser`)
-
-Converts Cypher query strings into Abstract Syntax Trees (ASTs) using ANTLR grammar.
-
-**Key Classes:**
-- `CypherParser`: Main parser orchestrator
-- `CypherVisitor`: AST visitor for semantic analysis
-- AST Nodes: `Query`, `MatchClause`, `WhereClause`, `ReturnClause`, `PathExpression`
-
-**AST Structure:**
-```python
+**AST Structure**:
+```
 Query
-├── MatchClause
-│   ├── paths: List[PathExpression]
-│   │   ├── nodes: List[NodePattern]
-│   │   │   ├── variable: Identifier
-│   │   │   ├── labels: List[Identifier]
-│   │   │   └── properties: Dict[str, Any]
-│   │   └── relationships: List[RelationshipPattern]
-│   │       ├── variable: Identifier
-│   │       ├── relationship_type: Identifier
-│   │       ├── direction: str ("in", "out", "both")
-│   │       └── length: PathLength (for variable-length paths)
-│   └── optional: bool
-├── WhereClause
-│   └── conditions: Dict (nested predicate tree)
-├── ReturnClause
-│   ├── items: List[Expression]
-│   ├── distinct: bool
-│   └── limit: Optional[int]
-└── OrderByClause (optional)
-    └── items: List[(Expression, direction)]
+├── match_clause: MatchClause
+│   └── paths: [PathExpression]
+│       ├── nodes: [
+│       │   NodePattern(variable="u", labels=["User"]),
+│       │   NodePattern(variable="d", labels=["Device"])
+│       │   ]
+│       └── relationships: [
+│           RelationshipPattern(type="LOGGED_IN", direction="out")
+│           ]
+├── where_clause: WhereClause
+│   └── conditions: {
+│       "type": "comparison",
+│       "operator": ">",
+│       "left": {"type": "property", "variable": "u", "property": "age"},
+│       "right": {"type": "literal", "value": 25}
+│       }
+└── return_clause: ReturnClause
+    └── items: [Property(variable="u", property="name")]
 ```
 
-**Example Parsing:**
+**KQL Output**:
+```kql
+IdentityInfo
+| make-graph AccountObjectId with_node_id=AccountObjectId
+| graph-match (u:User)-[:LOGGED_IN]->(d:Device)
+| where u.age > 25
+| project u.name
+```
+
+### Schema Mapper Integration
+
+The schema mapper is consulted at every stage:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Schema Mapper Flow                        │
+└─────────────────────────────────────────────────────────────┘
+
+Step 1: Load YAML Schema
+    │
+    ├─→ nodes: { User → IdentityInfo, Device → DeviceInfo }
+    ├─→ edges: { LOGGED_IN → join condition }
+    └─→ properties: { u.age → IdentityInfo.age }
+
+Step 2: Build Cache (Fast Lookup)
+    │
+    ├─→ label_to_table: {"User": "IdentityInfo", ...}
+    ├─→ edge_to_join: {"LOGGED_IN": "condition", ...}
+    └─→ property_to_field: {"age": "AccountAge", ...}
+
+Step 3: Translation Time
+    │
+    ├─→ get_sentinel_table("User") → "IdentityInfo"
+    ├─→ get_node_id_field("User") → "AccountObjectId"
+    ├─→ get_property_field("User", "age") → "AccountAge"
+    └─→ get_relationship_join("LOGGED_IN") → join condition
+```
+
+---
+
+## Component Architecture
+
+### Parser Module
+
+**Location**: `/src/yellowstone/parser/`
+
+**Purpose**: Convert Cypher query strings to Abstract Syntax Trees (AST)
+
+**Components**:
+- `parser.py`: Recursive descent parser with tokenization
+- `ast_nodes.py`: AST node definitions (Query, MatchClause, WhereClause, etc.)
+- `visitor.py`: AST traversal utilities
+
+**Input**: Raw Cypher query string
+```cypher
+MATCH (n:Person {name: "Alice"}) RETURN n
+```
+
+**Output**: Structured AST
 ```python
-from yellowstone.parser import parse_cypher
-
-cypher = "MATCH (u:User)-[:LOGGED_IN]->(d:Device) RETURN u.name, d.device_id"
-ast = parse_cypher(cypher)
-
-# ast.match_clause.paths[0].nodes[0].variable.name == 'u'
-# ast.match_clause.paths[0].relationships[0].relationship_type.name == 'LOGGED_IN'
+Query(
+    match_clause=MatchClause(
+        paths=[PathExpression(
+            nodes=[NodePattern(variable="n", labels=["Person"], properties={"name": "Alice"})]
+        )]
+    ),
+    return_clause=ReturnClause(items=[Identifier("n")])
+)
 ```
 
-### 2. Translator Module (`yellowstone.translator`)
+**Supported Features**:
+- Node patterns: `(n:Label)`, `(n:Label {prop: value})`
+- Relationships: `-[r:TYPE]->`, `<-[r:TYPE]-`, `-[r:TYPE]-`
+- WHERE clauses: Comparisons, AND/OR/NOT logic
+- RETURN clauses: Properties, aliases, ORDER BY, LIMIT, SKIP
+- Property access: `n.name`, `n.age`
 
-Orchestrates translation of Cypher AST to KQL queries with component translators.
+---
 
-**Key Classes:**
-- `CypherToKQLTranslator`: Main orchestrator
-- `GraphMatchTranslator`: MATCH clause → graph-match
-- `WhereClauseTranslator`: WHERE clause → KQL filters
-- `ReturnClauseTranslator`: RETURN clause → project/sort
-- `PathTranslator`: Variable-length path handling
+### Translator Components
 
-**Translation Pipeline:**
+#### 1. Graph Match Translator
+
+**Location**: `/src/yellowstone/translator/graph_match.py`
+
+**Purpose**: Convert MATCH clauses to KQL `graph-match` syntax
+
+**Input**: `MatchClause` AST node
+
+**Output**: KQL graph-match string
+
+**Example**:
 ```python
-from yellowstone.parser import parse_cypher
-from yellowstone.translator import CypherToKQLTranslator
+# Input AST
+MatchClause(paths=[PathExpression(
+    nodes=[NodePattern(variable="u", labels=["User"]),
+           NodePattern(variable="d", labels=["Device"])],
+    relationships=[RelationshipPattern(type="LOGGED_IN", direction="out")]
+)])
 
-# Step 1: Parse
-cypher_query = "MATCH (u:User)-[:LOGGED_IN]->(d:Device) RETURN u"
-ast = parse_cypher(cypher_query)
-
-# Step 2: Translate
-translator = CypherToKQLTranslator()
-kql_result = translator.translate(ast)
-
-# Result includes:
-# - kql_result.query: KQL query string
-# - kql_result.strategy: TranslationStrategy enum
-# - kql_result.confidence: float (0.0-1.0)
+# Output KQL
+"graph-match (u:User)-[:LOGGED_IN]->(d:Device)"
 ```
 
-**Component Responsibilities:**
+**Key Functions**:
+- `translate(match_clause)`: Main entry point
+- `_translate_path_expression(path)`: Convert path to KQL pattern
+- `_translate_node_pattern(node)`: Convert node to `(var:Label)` format
+- `_translate_relationship_pattern(rel)`: Convert relationship to `-[r:TYPE]->`
 
-**GraphMatchTranslator:**
-- Converts MATCH patterns to KQL graph-match syntax
-- Handles node labels, relationships, properties
-- Manages optional patterns and multiple paths
-- Normalizes property constraints
+---
 
-**WhereClauseTranslator:**
-- Maps Cypher operators to KQL operators (= → ==)
-- Handles logical operators (AND → and, OR → or)
-- Supports property access, literals, functions
-- Manages expression nesting and precedence
+#### 2. WHERE Clause Translator
 
-**ReturnClauseTranslator:**
-- Projects variables and properties
-- Handles DISTINCT keyword
-- Applies LIMIT constraints
-- Manages ORDER BY with sort direction
-- Handles aggregation functions (COUNT, SUM, etc.)
+**Location**: `/src/yellowstone/translator/where_clause.py`
 
-### 3. Schema Mapper Module (`yellowstone.schema`)
+**Purpose**: Convert Cypher WHERE conditions to KQL filter syntax
 
-Maps Cypher node labels and relationships to Microsoft Sentinel tables and join conditions.
+**Input**: Condition dictionary from AST
 
-**Key Classes:**
-- `SchemaMapper`: Main schema orchestrator
-- `SchemaValidator`: Schema validation rules
-- `LabelMappingCache`: In-memory label→table cache
-- Pydantic Models: `NodeMapping`, `EdgeMapping`, `SchemaMapping`
+**Output**: KQL where clause
 
-**Schema Processing:**
+**Example**:
+```python
+# Input
+{
+    "type": "logical",
+    "operator": "AND",
+    "left": {"type": "comparison", "operator": ">", "left": {"type": "property", "variable": "u", "property": "age"}, "right": {"type": "literal", "value": 25}},
+    "right": {"type": "comparison", "operator": "==", "left": {"type": "property", "variable": "u", "property": "dept"}, "right": {"type": "literal", "value": "IT"}}
+}
 
+# Output
+"u.age > 25 and u.dept == 'IT'"
+```
+
+**Operator Mapping**:
+| Cypher | KQL | Notes |
+|--------|-----|-------|
+| `=` | `==` | Equality |
+| `<>`, `!=` | `!=` | Inequality |
+| `>`, `<`, `>=`, `<=` | Same | Comparisons |
+| `AND` | `and` | Logical AND |
+| `OR` | `or` | Logical OR |
+| `NOT` | `not` | Logical NOT |
+
+---
+
+#### 3. RETURN Clause Translator
+
+**Location**: `/src/yellowstone/translator/return_clause.py`
+
+**Purpose**: Convert RETURN clauses to KQL `project` and sorting syntax
+
+**Input**: `ReturnClause` AST node
+
+**Output**: KQL project statement
+
+**Example**:
+```python
+# Input
+ReturnClause(
+    items=[Property(variable="u", property="name"), Property(variable="u", property="age")],
+    distinct=True,
+    order_by=[{"expression": "u.name", "direction": "ASC"}],
+    limit=10
+)
+
+# Output
+"project u.name, u.age | distinct | sort by u.name asc | limit 10"
+```
+
+**Features**:
+- Property projection: `u.name`, `d.device_id`
+- Aliases: `u.name AS userName`
+- DISTINCT: `| distinct`
+- ORDER BY: `| sort by expr [asc|desc]`
+- LIMIT: `| limit n`
+- SKIP: `| skip n`
+
+---
+
+#### 4. Path Translator
+
+**Location**: `/src/yellowstone/translator/paths.py`
+
+**Purpose**: Handle variable-length paths and complex pattern matching
+
+**Example**:
+```cypher
+MATCH (a)-[r*1..3]->(b)
+```
+Translates to:
+```kql
+graph-match (a)-[r*1..3]->(b)
+```
+
+---
+
+### Schema Mapper
+
+**Location**: `/src/yellowstone/schema/schema_mapper.py`
+
+**Purpose**: Map Cypher graph concepts to Microsoft Sentinel tables
+
+**Schema File**: `/src/yellowstone/schema/default_sentinel_schema.yaml`
+
+**Key Functions**:
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `get_sentinel_table(label)` | Get Sentinel table for Cypher label | `"User"` → `"IdentityInfo"` |
+| `get_all_properties(label)` | Get all properties for a label | `"User"` → `{user_id, username, email, ...}` |
+| `get_property_field(label, prop)` | Map property to Sentinel field | `("User", "email")` → `"AccountUpn"` |
+| `get_relationship_join(rel_type)` | Get join condition for relationship | `"LOGGED_IN"` → `join_condition` |
+| `get_table_fields(table)` | Get all fields in a Sentinel table | `"IdentityInfo"` → `[AccountObjectId, ...]` |
+
+**Schema Structure**:
 ```yaml
-# Example from default_sentinel_schema.yaml
 nodes:
   User:
     sentinel_table: IdentityInfo
@@ -278,365 +402,832 @@ nodes:
 
 edges:
   LOGGED_IN:
-    description: "User logged into a device"
     from_label: User
     to_label: Device
     sentinel_join:
       left_table: IdentityInfo
       right_table: DeviceInfo
       join_condition: "IdentityInfo.AccountName == DeviceInfo.UserName"
-    strength: high
 ```
 
-**Schema Validation:**
-- Node label→table mappings
-- Relationship→join condition verification
-- Property type consistency
-- Required field checking
-- Circular dependency detection
+---
 
-### 4. CLI Module (`yellowstone.cli`)
+### Main Translator
 
-Command-line interface for query translation and schema management.
+**Location**: `/src/yellowstone/main_translator.py`
 
-**Key Commands:**
-```bash
-# Translate Cypher to KQL
-yellowstone translate "MATCH (n) RETURN n"
+**Purpose**: Orchestrate end-to-end translation from Cypher to KQL
 
-# Validate schema
-yellowstone validate-schema schema.yaml
+**Key Class**: `CypherTranslator`
 
-# Inspect schema
-yellowstone schema-info User
+**Workflow**:
 
-# Show available relationships
-yellowstone relationships
 ```
+CypherTranslator.translate(cypher_query, context)
+    │
+    ├─→ 1. Parse Cypher to AST (parser.parse_query)
+    │
+    ├─→ 2. Classify complexity (_classify_query_complexity)
+    │      ├─ Fast Path: 1-2 hops, simple WHERE
+    │      ├─ AI Path: 3+ hops, complex patterns
+    │      └─ Fallback: Extremely complex
+    │
+    ├─→ 3. Translate based on strategy
+    │      ├─ _translate_fast_path(ast)
+    │      │   ├─ Generate make-graph preamble
+    │      │   ├─ Translate MATCH clause
+    │      │   ├─ Translate WHERE clause
+    │      │   └─ Translate RETURN clause
+    │      │
+    │      └─ (AI path not yet fully implemented)
+    │
+    ├─→ 4. Validate generated KQL (validate)
+    │      ├─ Syntax checks
+    │      ├─ Schema validation
+    │      └─ Balanced parentheses/brackets
+    │
+    └─→ 5. Return KQLQuery object
+            ├─ query: KQL string
+            ├─ strategy: FAST_PATH/AI_PATH/FALLBACK
+            ├─ confidence: 0.0-1.0
+            └─ estimated_execution_time_ms
+```
+
+---
+
+### AI Translator
+
+**Location**: `/src/yellowstone/ai_translator/claude_sdk_client.py`
+
+**Purpose**: Handle complex queries using Claude Sonnet 4.5
+
+**When Used**:
+- Queries with 3+ hops
+- Complex WHERE conditions (deeply nested logic)
+- Variable-length paths
+- Aggregations and complex projections
+
+**Architecture**:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    AI Translation Flow                        │
+└──────────────────────────────────────────────────────────────┘
+
+Step 1: Query Classification
+    │
+    ├─→ Check: num_hops > 2?
+    ├─→ Check: nested WHERE conditions?
+    ├─→ Check: variable-length paths?
+    └─→ Decision: Use AI Path
+
+Step 2: Build Context
+    │
+    ├─→ Load KQL graph documentation (128K tokens)
+    ├─→ Include Sentinel schema mappings
+    ├─→ Add example translations
+    └─→ Prepare system prompt
+
+Step 3: Call Claude API
+    │
+    ├─→ Model: claude-sonnet-4-5-20250929
+    ├─→ Max tokens: Configurable (default 4096)
+    ├─→ Temperature: 0.0 (deterministic)
+    └─→ Retry logic: 3 attempts with exponential backoff
+
+Step 4: Parse Response
+    │
+    ├─→ Extract KQL query from response
+    ├─→ Validate syntax
+    └─→ Return KQLQuery with confidence score
+```
+
+**System Prompt** (Simplified):
+```
+You are an expert at translating Cypher queries to KQL for Microsoft Sentinel.
+
+Use KQL graph operators:
+- make-graph: Create graph from tabular data
+- graph-match: Pattern matching with (node)-[edge]->(node) syntax
+
+Translation pattern:
+1. Source table (e.g., IdentityInfo)
+2. make-graph with node ID
+3. graph-match pattern
+4. where filters
+5. project output
+
+Return ONLY the KQL query, no explanations.
+```
+
+**Error Handling**:
+- `ClaudeAPIError`: API errors with retry logic
+- `ClaudeRateLimitError`: Rate limiting with backoff
+- `ClaudeSDKError`: General SDK errors
+
+---
+
+## KQL Generation
+
+### make-graph Operator
+
+The `make-graph` operator creates a transient graph from tabular data.
+
+**Purpose**: Define graph structure before pattern matching
+
+**Syntax**:
+```kql
+Table
+| make-graph NodeIdColumn with_node_id=NodeIdColumn
+```
+
+**Generation Logic** (from `main_translator.py:_generate_make_graph_preamble`):
+
+```
+Input: MATCH (u:User)-[:LOGGED_IN]->(d:Device)
+
+Step 1: Extract labels
+    labels = ["User", "Device"]
+
+Step 2: Map labels to tables
+    schema_mapper.get_sentinel_table("User") → "IdentityInfo"
+    schema_mapper.get_sentinel_table("Device") → "DeviceInfo"
+
+Step 3: Determine node ID field
+    For "User" → IdentityInfo:
+        Check for properties with "id" in name and required=true
+        Found: user_id → AccountObjectId
+
+    For "Device" → DeviceInfo:
+        Found: device_id → DeviceId
+
+Step 4: Generate make-graph
+    Primary table: IdentityInfo (first label encountered)
+    Output:
+        IdentityInfo
+        | make-graph AccountObjectId with_node_id=AccountObjectId
+```
+
+**Multi-Table Support** (Future Enhancement):
+```kql
+IdentityInfo
+| make-graph AccountObjectId with_node_id=AccountObjectId
+| join kind=inner (
+    DeviceInfo
+    | make-graph DeviceId with_node_id=DeviceId
+) on JoinKey
+```
+
+---
+
+### Table Selection from Schema
+
+**Algorithm**:
+
+```python
+def select_table_for_label(label: str) -> str:
+    """
+    1. Look up label in schema YAML
+    2. Return corresponding sentinel_table
+    3. If not found, raise ValueError
+    """
+
+# Example lookups
+"User" → "IdentityInfo"
+"Device" → "DeviceInfo"
+"SecurityEvent" → "SecurityEvent"
+"File" → "FileEvents"
+"Process" → "ProcessEvents"
+"IP" → "NetworkSession"
+```
+
+**Node ID Selection** (Priority Order):
+
+1. Properties with `required: true` and `id` in name
+2. First `required: true` property
+3. Hardcoded defaults for common tables:
+   - `IdentityInfo` → `AccountObjectId`
+   - `DeviceInfo` → `DeviceId`
+   - `SecurityEvent` → `EventID`
+   - `ProcessEvents` → `ProcessId`
+4. First field in table schema
+
+---
+
+### Pattern Matching Generation
+
+**Cypher Pattern**:
+```cypher
+MATCH (u:User)-[r:LOGGED_IN]->(d:Device)
+```
+
+**Generated KQL**:
+```kql
+| graph-match (u:User)-[r:LOGGED_IN]->(d:Device)
+```
+
+**Translation Rules**:
+
+| Cypher Element | KQL Element | Notes |
+|----------------|-------------|-------|
+| `(n)` | `(n)` | Untyped node |
+| `(n:Label)` | `(n:Label)` | Typed node |
+| `-[r]->` | `-[r]->` | Directed edge |
+| `<-[r]-` | `<-[r]-` | Reverse directed edge |
+| `-[r]-` | `-[r]-` | Undirected edge |
+| `-[r:TYPE]->` | `-[r:TYPE]->` | Typed edge |
+| `-[r*1..3]->` | `-[r*1..3]->` | Variable-length path |
+
+---
+
+### Complete Example with Annotations
+
+**Input Cypher**:
+```cypher
+MATCH (u:User)-[:LOGGED_IN]->(d:Device)
+WHERE u.age > 25 AND d.os_platform == "Windows"
+RETURN u.name, d.device_name
+ORDER BY u.name ASC
+LIMIT 10
+```
+
+**Generated KQL with Annotations**:
+```kql
+IdentityInfo                                          ← Source table from schema (User → IdentityInfo)
+| make-graph AccountObjectId with_node_id=AccountObjectId  ← Node ID from schema (User.user_id → AccountObjectId)
+| graph-match (u:User)-[:LOGGED_IN]->(d:Device)      ← Pattern matching (direct translation)
+| where u.age > 25 and d.os_platform == "Windows"    ← WHERE conditions (with operator mapping = → ==)
+| project u.name, d.device_name                      ← Projection (property access)
+| sort by u.name asc                                 ← ORDER BY translation
+| limit 10                                           ← LIMIT translation
+```
+
+**Step-by-Step Breakdown**:
+
+1. **Table Selection**:
+   - Label `User` → Schema lookup → `IdentityInfo`
+
+2. **make-graph Generation**:
+   - Node ID field: `User.user_id` → Schema lookup → `AccountObjectId`
+   - Statement: `make-graph AccountObjectId with_node_id=AccountObjectId`
+
+3. **Pattern Translation**:
+   - `(u:User)` → `(u:User)` (direct copy)
+   - `-[:LOGGED_IN]->` → `-[:LOGGED_IN]->` (direct copy)
+   - `(d:Device)` → `(d:Device)` (direct copy)
+
+4. **WHERE Translation**:
+   - `u.age > 25` → `u.age > 25` (property access + comparison)
+   - `AND` → `and` (lowercase)
+   - `d.os_platform == "Windows"` → `d.os_platform == "Windows"` (string literal preserved)
+
+5. **RETURN Translation**:
+   - `u.name, d.device_name` → `project u.name, d.device_name`
+   - `ORDER BY u.name ASC` → `| sort by u.name asc`
+   - `LIMIT 10` → `| limit 10`
+
+---
+
+## AI Enhancement
+
+### When AI is Used
+
+**Trigger Conditions** (from `_classify_query_complexity`):
+
+```python
+# Fast Path (85% of queries)
+if num_paths <= 2 and total_relationships <= 2 and not has_complex_where:
+    return TranslationStrategy.FAST_PATH
+
+# AI Path (10% of queries)
+if num_paths <= 5 and total_relationships <= 5 and (
+    has_complex_where or
+    has_variable_length_paths or
+    has_aggregations
+):
+    return TranslationStrategy.AI_PATH
+
+# Fallback (5% of queries)
+return TranslationStrategy.FALLBACK
+```
+
+**Complex Query Example** (AI Path):
+```cypher
+MATCH (u:User)-[:FRIEND*1..3]->(friend)-[:LIKES]->(post:Post)
+WHERE u.country == "US" AND post.timestamp > timestamp() - duration({days: 7})
+RETURN u.name, COUNT(post) AS post_count, AVG(post.likes) AS avg_likes
+ORDER BY post_count DESC
+LIMIT 20
+```
+
+**Why AI Path**:
+- Variable-length path: `[:FRIEND*1..3]`
+- Multiple hops: 2 relationship types
+- Aggregations: `COUNT()`, `AVG()`
+- Complex temporal logic: `timestamp() - duration()`
+
+---
+
+### Documentation Context Provided to AI
+
+**KQL Graph Documentation** (Injected into System Prompt):
+
+```
+Source: https://learn.microsoft.com/en-us/kusto/query/graph-semantics-overview
+
+Key Sections:
+1. make-graph operator syntax and examples
+2. graph-match pattern matching syntax
+3. Variable-length paths: -[e*3..5]-
+4. Cycle handling: cycles=all|none|unique_edges
+5. Node and edge constraints
+6. Integration with tabular operators
+```
+
+**Schema Context** (from YAML):
+
+```yaml
+Available Node Types:
+  - User (IdentityInfo)
+  - Device (DeviceInfo)
+  - SecurityEvent (SecurityEvent)
+  - File (FileEvents)
+  - Process (ProcessEvents)
+  - ... (12 total node types)
+
+Available Relationship Types:
+  - LOGGED_IN (User → Device)
+  - OWNS (User → Device)
+  - ACCESSED (User → File)
+  - EXECUTED (User → Process)
+  - ... (13 total relationship types)
+
+Each with:
+  - Sentinel join conditions
+  - Property mappings
+  - Cardinality hints
+```
+
+**Example Translations** (Few-Shot Learning):
+
+```
+Example 1:
+Cypher: MATCH (u:User) RETURN u.name
+KQL:
+IdentityInfo
+| make-graph AccountObjectId with_node_id=AccountObjectId
+| graph-match (u:User)
+| project u.name
+
+Example 2:
+Cypher: MATCH (u:User)-[:LOGGED_IN]->(d:Device) WHERE u.age > 30 RETURN u.name, d.name
+KQL:
+IdentityInfo
+| make-graph AccountObjectId with_node_id=AccountObjectId
+| graph-match (u:User)-[:LOGGED_IN]->(d:Device)
+| where u.age > 30
+| project u.name, d.name
+```
+
+---
+
+### Model Configuration
+
+**Claude Sonnet 4.5** (`claude-sonnet-4-5-20250929`)
+
+| Parameter | Value | Rationale |
+|-----------|-------|-----------|
+| **Max Tokens** | 4096 | Sufficient for most KQL queries |
+| **Temperature** | 0.0 | Deterministic output for query translation |
+| **Context Window** | 128K tokens | Large enough for full KQL docs + schema |
+| **Streaming** | Supported | For real-time feedback |
+| **Retry Logic** | 3 attempts | Handle transient failures |
+| **Backoff** | Exponential | 1s, 2s, 4s delays |
+| **Timeout** | 30 seconds | Prevent hanging requests |
+
+**Cost Considerations**:
+
+- **Input**: ~20K tokens (docs + schema + query)
+- **Output**: ~500 tokens (average KQL query)
+- **Cost per query**: ~$0.01 (estimated)
+- **Caching**: Pattern cache reduces repeated translations
+
+---
 
 ## Data Flow Diagrams
 
-### Translation Flow
+### Request Flow
 
 ```
-Input: Cypher Query String
+┌─────────────┐
+│   Client    │  HTTP POST /translate
+│  (Analyst)  │  { "query": "MATCH (u:User)...", "context": {...} }
+└──────┬──────┘
        │
-       ├─ String Validation
-       │  ├─ Length check
-       │  ├─ Character validation
-       │  └─ Encoding verification
+       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    API Gateway (FastAPI)                     │
+│  - Authentication (JWT)                                      │
+│  - Rate limiting                                             │
+│  - Request validation                                        │
+└──────┬──────────────────────────────────────────────────────┘
        │
-       ├─ Parsing
-       │  ├─ Lexical analysis
-       │  ├─ Syntax analysis
-       │  └─ AST construction
+       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Security Layer                            │
+│  - Authorization check (RBAC)                                │
+│  - Query injection prevention                                │
+│  - Audit logging                                             │
+└──────┬──────────────────────────────────────────────────────┘
        │
-       ├─ Query Classification
-       │  ├─ Complexity scoring
-       │  ├─ Pattern analysis
-       │  └─ Feature detection
+       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   CypherTranslator                           │
+│  - Parse query (parser.parse_query)                          │
+│  - Classify complexity                                       │
+│  - Select translation strategy                               │
+└──────┬──────────────────────────────────────────────────────┘
        │
-       ├─ Translation Routing
-       │  ├─ Fast Path (85%)
-       │  ├─ AI Path (10%)
-       │  └─ Fallback Path (5%)
-       │
-       ├─ Component Translation
-       │  ├─ MATCH → graph-match
-       │  ├─ WHERE → where filters
-       │  └─ RETURN → project/sort
-       │
-       ├─ Query Assembly
-       │  ├─ Clause ordering
-       │  ├─ Operator placement
-       │  └─ Syntax validation
-       │
-       ├─ Optimization
-       │  ├─ Predicate pushdown
-       │  ├─ Join optimization
-       │  └─ Cardinality estimation
-       │
-       └─ Output: KQL Query + Metadata
-          ├─ Strategy used
-          ├─ Confidence score
-          └─ Performance estimates
+       ├────────────────────────────────────┐
+       │                                    │
+       ▼                                    ▼
+┌──────────────┐                   ┌──────────────┐
+│  Fast Path   │                   │   AI Path    │
+│  Translator  │                   │   (Claude)   │
+└──────┬───────┘                   └──────┬───────┘
+       │                                   │
+       └───────────────┬───────────────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │    Validator    │
+              │  (Syntax Check) │
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │   KQL Query     │
+              │   (Response)    │
+              └────────┬────────┘
+                       │
+                       ▼
+              ┌─────────────────┐
+              │  Return to      │
+              │  Client         │
+              │  { "kql": "..." }
+              └─────────────────┘
 ```
 
-### Schema Resolution Flow
+---
+
+### Translation Flow (Fast Path)
 
 ```
-MATCH (u:User)-[:LOGGED_IN]->(d:Device)
-       │
-       ├─ Load Default Schema
-       │
-       ├─ User Label Resolution
-       │  ├─ Find "User" in schema
-       │  ├─ Get table: IdentityInfo
-       │  ├─ Resolve properties
-       │  └─ Cache result
-       │
-       ├─ LOGGED_IN Relationship Resolution
-       │  ├─ Find "LOGGED_IN" in schema
-       │  ├─ Verify endpoints: User → Device
-       │  ├─ Get join condition
-       │  │   └─ IdentityInfo.AccountName == DeviceInfo.UserName
-       │  └─ Cache result
-       │
-       ├─ Device Label Resolution
-       │  ├─ Find "Device" in schema
-       │  ├─ Get table: DeviceInfo
-       │  └─ Cache result
-       │
-       └─ Resolved Graph Structure
-          ├─ Nodes mapped to tables
-          ├─ Relationships mapped to joins
-          └─ Properties mapped to fields
+┌────────────────┐
+│ Cypher Query   │
+│ "MATCH (u:User)│
+│  RETURN u"     │
+└───────┬────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│           Lexer (Tokenization)              │
+│  Output: [Token(MATCH), Token(LPAREN), ...]│
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│          Parser (AST Generation)            │
+│  Output: Query(match_clause, return_clause)│
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│         Query Classifier                    │
+│  num_hops=0, has_complex_where=False        │
+│  Decision: FAST_PATH                        │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│     _generate_make_graph_preamble          │
+│  1. Extract labels: ["User"]               │
+│  2. Schema lookup: User → IdentityInfo     │
+│  3. Node ID: user_id → AccountObjectId     │
+│  Output: "IdentityInfo                     │
+│          | make-graph AccountObjectId..."  │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│     GraphMatchTranslator.translate         │
+│  Input: match_clause                       │
+│  Output: "graph-match (u:User)"            │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│     WhereClauseTranslator.translate        │
+│  Input: None (no WHERE clause)             │
+│  Output: "" (empty)                        │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│     ReturnClauseTranslator.translate       │
+│  Input: return_clause                      │
+│  Output: "project u"                       │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│         _assemble_query                    │
+│  Combine all parts with "\n| "             │
+│  Output:                                   │
+│    IdentityInfo                            │
+│    | make-graph AccountObjectId ...        │
+│    | graph-match (u:User)                  │
+│    | project u                             │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│           validate(kql)                    │
+│  - Syntax checks                           │
+│  - Balanced parens/brackets                │
+│  - Schema validation                       │
+│  Result: True                              │
+└───────┬────────────────────────────────────┘
+        │
+        ▼
+┌────────────────────────────────────────────┐
+│          KQLQuery Object                   │
+│  {                                         │
+│    query: "...",                           │
+│    strategy: FAST_PATH,                    │
+│    confidence: 0.95,                       │
+│    estimated_execution_time_ms: None       │
+│  }                                         │
+└────────────────────────────────────────────┘
 ```
 
-## KQL Native Graph Operators
+---
 
-Yellowstone leverages KQL's native graph operators, fundamentally different from traditional SQL approaches.
+### Error Handling Flow
 
-### KQL Graph Operators
-
-**1. make-graph**
-Creates an in-memory graph from tabular data.
-
-```kusto
-// Example: Create user-device login graph
-SecurityEvent
-| where Activity == "Logon"
-| make-graph (Account)-[LOGGED_IN]->(Computer) on TimeGenerated
+```
+┌────────────────┐
+│ Query Input    │
+└───────┬────────┘
+        │
+        ▼
+┌────────────────────────────────┐
+│      Try: Parse Query          │
+└───────┬────────────────────────┘
+        │
+        ├─ Success ─────────────────────────────┐
+        │                                       │
+        ├─ Error: SyntaxError ──────────┐      │
+        │                                │      │
+        └─ Error: Other Exception ───┐  │      │
+                                     │  │      │
+                                     ▼  ▼      ▼
+                                ┌──────────────────┐
+                                │  Error Handler   │
+                                │                  │
+                                │  SyntaxError:    │
+                                │    → 400 Bad     │
+                                │       Request    │
+                                │                  │
+                                │  ValueError:     │
+                                │    → 422         │
+                                │       Unproc.    │
+                                │                  │
+                                │  Other:          │
+                                │    → 500 Server  │
+                                │       Error      │
+                                └────────┬─────────┘
+                                         │
+                                         ▼
+                                ┌──────────────────┐
+                                │  Audit Log       │
+                                │  - User          │
+                                │  - Query         │
+                                │  - Error         │
+                                │  - Timestamp     │
+                                └────────┬─────────┘
+                                         │
+                                         ▼
+                                ┌──────────────────┐
+                                │  Return Error    │
+                                │  Response        │
+                                │  {               │
+                                │   "error": "...",│
+                                │   "code": 400    │
+                                │  }               │
+                                └──────────────────┘
 ```
 
-**2. graph-match**
-Matches patterns in the graph using Cypher-like syntax.
+**Error Types**:
 
-```kusto
-// Find all users who logged into multiple devices within 1 hour
-graph-match (user:IdentityInfo)-[LOGGED_IN]->(device:DeviceInfo)
-where user.RiskLevel == "High"
-project user.AccountName, device.DeviceName
+| Error | HTTP Code | Cause | Recovery |
+|-------|-----------|-------|----------|
+| `SyntaxError` | 400 | Invalid Cypher syntax | Fix query syntax |
+| `TranslationError` | 422 | Translation failed | Check schema mappings |
+| `ValueError` | 422 | Invalid AST structure | Internal bug - report |
+| `ClaudeAPIError` | 502 | AI service unavailable | Retry with fast path |
+| `SchemaError` | 500 | Schema load failure | Check schema file |
+| `ValidationError` | 422 | Generated KQL invalid | Internal bug - report |
+
+---
+
+## Schema Mapping
+
+### YAML Schema Structure
+
+**File**: `/src/yellowstone/schema/default_sentinel_schema.yaml`
+
+**Sections**:
+
+1. **Metadata**
+   ```yaml
+   version: "1.0.0"
+   description: "Default schema mapping Cypher labels to Sentinel tables"
+   ```
+
+2. **Node Mappings**
+   ```yaml
+   nodes:
+     User:
+       sentinel_table: IdentityInfo
+       properties:
+         user_id:
+           sentinel_field: AccountObjectId
+           type: string
+           required: true
+   ```
+
+3. **Edge Mappings**
+   ```yaml
+   edges:
+     LOGGED_IN:
+       from_label: User
+       to_label: Device
+       sentinel_join:
+         left_table: IdentityInfo
+         right_table: DeviceInfo
+         join_condition: "IdentityInfo.AccountName == DeviceInfo.UserName"
+   ```
+
+4. **Table Metadata**
+   ```yaml
+   tables:
+     IdentityInfo:
+       description: "User and identity information"
+       retention_days: 30
+       fields:
+         - AccountObjectId
+         - AccountName
+         - AccountDomain
+   ```
+
+---
+
+### Schema Loading Process
+
+```
+┌──────────────────────────────────────────────────────┐
+│               Schema Loading Flow                     │
+└──────────────────────────────────────────────────────┘
+
+Step 1: Initialize SchemaMapper
+    │
+    └─→ schema_path = None? Use default: default_sentinel_schema.yaml
+
+Step 2: Load YAML File
+    │
+    ├─→ Open file: default_sentinel_schema.yaml
+    ├─→ Parse YAML: yaml.safe_load()
+    └─→ Create SchemaMapping object
+
+Step 3: Validate Schema
+    │
+    ├─→ Check required fields (version, nodes, edges, tables)
+    ├─→ Validate node mappings
+    ├─→ Validate edge mappings
+    ├─→ Check referential integrity
+    └─→ Return validation result
+
+Step 4: Build Cache
+    │
+    ├─→ label_to_table: {"User": "IdentityInfo", ...}
+    ├─→ table_to_fields: {"IdentityInfo": ["AccountObjectId", ...], ...}
+    ├─→ edge_to_join: {"LOGGED_IN": {...}, ...}
+    └─→ property_to_field: {("User", "email"): "AccountUpn", ...}
+
+Step 5: Ready for Translation
+    │
+    └─→ Fast lookups via cache during translation
 ```
 
-**3. graph-shortest-paths**
-Finds shortest paths between nodes.
+---
 
-```kusto
-// Find shortest attack path from compromised device to admin
-graph-shortest-paths (start:DeviceInfo)-[*]-(end:IdentityInfo)
-where start.DeviceId == "DEVICE_123"
-  and end.IsAdmin == true
-project path
-```
+### Example Mappings
 
-### Cypher ↔ KQL Graph Mapping
-
-| Cypher | KQL Graph Operator | Example |
-|--------|-------------------|---------|
-| `MATCH (n)-[r]->(m)` | `graph-match (n)-[r]->(m)` | Pattern matching |
-| `(n)-[r*1..3]-(m)` | `(n)-[r*1..3]-(m)` | Variable-length paths |
-| `(n)<-[r]-(m)` | `(n)<-[r]-(m)` | Incoming edges |
-| `(n)-[r]-(m)` | `(n)-[r]-(m)` | Bidirectional |
-| `WHERE n.prop = value` | `where n.prop == value` | Filtering |
-| `RETURN n, m` | `project n, m` | Projection |
-
-### Performance Benefits
-
-**Native Graph Processing:**
-- In-memory graph construction (KQL make-graph)
-- Optimized pattern matching algorithms
-- Parallel traversal capabilities
-- Reduced join complexity
-- Better cardinality estimation
-
-**Performance Metrics:**
-- Multi-hop queries: 15-30x faster vs. joins
-- Pattern matching: 5-10x faster vs. regex
-- Memory efficiency: Graph structures vs. intermediate tables
-- Query planning: Single graph vs. multiple joins
-
-## Translation Strategy Selection
-
-The system automatically selects translation strategy based on query characteristics:
-
-```python
-def classify_query(ast: Query) -> TranslationStrategy:
-    """
-    Scoring algorithm:
-    - Base complexity: 0
-    - +1 per hop (max +5)
-    - +3 for variable-length paths
-    - +1 per WHERE condition (max +3)
-    - +2 for aggregations
-    - +2 for subqueries
-
-    Score → Strategy:
-    - 0-2: Fast Path (85%)
-    - 3-6: Fast Path with cache checks
-    - 7-10: Consider AI Path (10%)
-    - 11+: Fallback Path or AI Path (5%)
-    """
-```
-
-**Decision Tree:**
-```
-Query Classification
-├─ Feature Detection
-│  ├─ Variable-length paths? → Consider AI
-│  ├─ Subqueries? → AI or Fallback
-│  ├─ Complex aggregations? → AI
-│  └─ Standard patterns? → Fast Path
-│
-├─ Complexity Scoring
-│  ├─ Low (0-2): Fast Path
-│  ├─ Medium (3-6): Fast Path + optimization
-│  ├─ High (7-10): AI Path
-│  └─ Very High (11+): Fallback
-│
-└─ Confidence Assessment
-   ├─ >95%: Fast Path
-   ├─ 70-95%: AI Path
-   └─ <70%: Fallback or manual review
-```
-
-## Extension Points
-
-### Adding Custom Schema Mappings
-
+**Node Mapping** (User → IdentityInfo):
 ```yaml
-# custom_schema.yaml (extends default)
-nodes:
-  CustomEntity:
-    sentinel_table: CustomTable
-    properties:
-      entity_id:
-        sentinel_field: EntityID
-        type: string
-        required: true
-
-edges:
-  CUSTOM_RELATIONSHIP:
-    description: "Custom relationship"
-    from_label: CustomEntity
-    to_label: Device
-    sentinel_join:
-      left_table: CustomTable
-      right_table: DeviceInfo
-      join_condition: "CustomTable.EntityID == DeviceInfo.DeviceId"
-    strength: medium
+User:
+  sentinel_table: IdentityInfo
+  properties:
+    user_id:
+      sentinel_field: AccountObjectId
+      type: string
+      required: true
+    username:
+      sentinel_field: AccountName
+      type: string
+      required: true
+    email:
+      sentinel_field: AccountUpn
+      type: string
+      required: false
 ```
 
-### Implementing Custom Translators
-
+**Usage in Translation**:
 ```python
-# Extend WhereClauseTranslator for domain-specific logic
-class SecurityWhereClauseTranslator(WhereClauseTranslator):
-    def _translate_comparison(self, condition):
-        # Add security domain logic
-        # Example: Automatically include risk scoring
-        result = super()._translate_comparison(condition)
-        if "Risk" in str(condition):
-            result += " | extend risk_score = risk_value * 10"
-        return result
+# Cypher property access
+u.email
+
+# Schema lookup
+schema_mapper.get_property_field("User", "email")
+# Returns: "AccountUpn"
+
+# Generated KQL
+u.AccountUpn
 ```
 
-### Custom Classification Rules
+**Edge Mapping** (LOGGED_IN):
+```yaml
+LOGGED_IN:
+  from_label: User
+  to_label: Device
+  sentinel_join:
+    left_table: IdentityInfo
+    right_table: DeviceInfo
+    join_condition: "IdentityInfo.AccountName == DeviceInfo.UserName"
+  strength: high
+```
 
+**Usage in Translation** (Future - Multi-Table Support):
 ```python
-class SecurityQueryClassifier(QueryClassifier):
-    def classify(self, ast: Query) -> TranslationStrategy:
-        # Security domain rules
-        if self._is_threat_hunting_query(ast):
-            return TranslationStrategy.AI_ENHANCED
-        if self._is_high_frequency_investigation(ast):
-            return TranslationStrategy.FAST_PATH
-        return super().classify(ast)
+# Cypher pattern
+(u:User)-[:LOGGED_IN]->(d:Device)
+
+# Schema lookup for join condition
+schema_mapper.get_relationship_join("LOGGED_IN")
+# Returns: join_condition
+
+# Generated KQL (future)
+IdentityInfo
+| join kind=inner (DeviceInfo) on AccountName == UserName
+| make-graph ...
 ```
+
+---
 
 ## Performance Characteristics
 
-### Translation Performance
+| Metric | Fast Path | AI Path | Fallback |
+|--------|-----------|---------|----------|
+| **Average Latency** | 50-100ms | 500-1000ms | 200-500ms |
+| **Queries/Second** | 100+ | 5-10 | 20-50 |
+| **Confidence** | 95% | 80% | 70% |
+| **Accuracy** | High | High | Medium |
+| **Cost per Query** | $0.0001 | $0.01 | $0.001 |
 
-| Query Type | Fast Path | AI Path | Fallback |
-|------------|-----------|---------|----------|
-| Simple 1-hop | 0.1ms | N/A | 5ms |
-| Multi-hop (3) | 0.5ms | 2000ms | 10ms |
-| Variable-length | 1ms* | 3000ms | 20ms |
-| With aggregation | 2ms | 2500ms | 15ms |
+---
 
-*Fast path with variable-length requires bounds
+## Future Enhancements
 
-### Query Execution (Sentinel)
+1. **Multi-Table Joins**: Support queries spanning multiple Sentinel tables
+2. **Query Optimization**: Analyze and optimize generated KQL for performance
+3. **Caching Layer**: Cache frequent query patterns
+4. **Semantic Validation**: Validate queries against actual Sentinel workspace schema
+5. **Batch Translation**: Translate multiple queries in parallel
+6. **Query Rewriting**: Optimize Cypher queries before translation
+7. **Telemetry**: Detailed metrics on translation success rates and performance
 
-| Pattern | Join Approach | Graph Approach | Improvement |
-|---------|---------------|----------------|-------------|
-| 3-hop | 500ms | 30ms | 16x |
-| 5-hop | 2000ms | 50ms | 40x |
-| Star pattern | 1500ms | 40ms | 37x |
-| Shortest path | 3000ms | 100ms | 30x |
+---
 
-## Error Handling
+## References
 
-```python
-TranslationException Hierarchy:
-├─ ParsingException
-│  ├─ SyntaxError
-│  ├─ InvalidToken
-│  └─ GrammarError
-├─ TranslationException
-│  ├─ UnsupportedFeature
-│  ├─ SchemaResolutionError
-│  └─ QueryAssemblyError
-├─ SchemaException
-│  ├─ InvalidSchema
-│  ├─ MissingMapping
-│  └─ CircularDependency
-└─ ExecutionException
-   ├─ QueryTimeout
-   ├─ ResourceExhausted
-   └─ AuthorizationError
-```
+- **KQL Graph Semantics**: [Microsoft Learn](https://learn.microsoft.com/en-us/kusto/query/graph-semantics-overview)
+- **openCypher Specification**: [openCypher.org](https://opencypher.org)
+- **Claude Agent SDK**: [Anthropic Docs](https://docs.anthropic.com)
+- **Microsoft Sentinel**: [Azure Sentinel](https://azure.microsoft.com/en-us/products/microsoft-sentinel)
 
-## Monitoring & Observability
+---
 
-### Key Metrics
-
-```
-Translation Metrics:
-- queries_classified_fast_path (counter)
-- queries_classified_ai_path (counter)
-- queries_classified_fallback (counter)
-- translation_latency_ms (histogram)
-- confidence_score (histogram)
-- feature_usage (counter per feature)
-
-Query Execution:
-- execution_latency_ms (histogram)
-- rows_returned (histogram)
-- memory_used_mb (gauge)
-- cache_hit_rate (gauge)
-```
-
-### Audit Trail
-
-```python
-# Each translation generates audit event
-{
-    "timestamp": "2025-10-29T12:34:56Z",
-    "query_id": "q_123456",
-    "cypher_query": "MATCH (n) RETURN n",
-    "strategy": "FAST_PATH",
-    "confidence": 0.97,
-    "execution_time_ms": 0.5,
-    "schema_version": "1.0.0",
-    "operator_used": "graph-match",
-    "user": "analyst@contoso.com"
-}
-```
-
-## See Also
-
-- [TRANSLATION_GUIDE.md](./TRANSLATION_GUIDE.md) - Detailed translation rules and mappings
-- [SCHEMA_GUIDE.md](./SCHEMA_GUIDE.md) - Schema mapping and configuration
-- [CLI_REFERENCE.md](../CLI_REFERENCE.md) - Command-line tool reference
+**Last Updated**: 2025-10-30
+**Version**: 2.0
+**Maintainer**: Project Yellowstone Team
