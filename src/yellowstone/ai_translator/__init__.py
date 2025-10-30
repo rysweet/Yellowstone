@@ -1,17 +1,17 @@
-"""AI translation layer for natural language to KQL conversion.
+"""AI translation layer for complex Cypher queries.
 
 This package provides:
 - Query classification and routing (Fast/AI/Fallback)
 - Pattern-based caching for common queries
 - Semantic validation of translated KQL
 - Learning from successful translations
-- Mock Claude SDK integration for testing
+- Anthropic API integration for complex patterns
 
 Main components:
 - QueryClassifier: Routes queries based on complexity (85%/10%/5% split)
 - PatternCache: Caches translations with pattern learning (target >60% hit rate)
 - SemanticValidator: Validates KQL syntax and semantics
-- ClaudeSDKClient: Mock Claude API integration
+- ClaudeSDKClient: Anthropic API integration for complex queries
 
 Example:
     >>> from yellowstone.ai_translator import QueryClassifier, PatternCache, SemanticValidator

@@ -5,7 +5,6 @@ This module provides a wrapper around the Claude Agent SDK with:
 - Complex query translation with streaming support
 - Retry logic with exponential backoff
 - Comprehensive error handling
-- Mock mode for testing without real API calls
 """
 
 import asyncio
@@ -47,11 +46,10 @@ class ClaudeRateLimitError(ClaudeSDKError):
 class ClaudeSDKClient:
     """Claude Agent SDK client wrapper.
 
-    Provides interface to Claude API with retry logic, error handling,
-    and mock mode for testing.
+    Provides interface to Claude API with retry logic and error handling.
 
     Example:
-        >>> client = ClaudeSDKClient(api_key="sk-...", mock_mode=False)
+        >>> client = ClaudeSDKClient(api_key="sk-...")
         >>> request = ClaudeAPIRequest(
         ...     prompt="Translate: find nodes with label 'Person'",
         ...     max_tokens=1024
@@ -84,7 +82,6 @@ Examples:
         base_delay: float = 1.0,
         max_delay: float = 60.0,
         timeout: float = 30.0,
-        mock_mode: bool = False,
     ):
         """Initialize Claude SDK client.
 
@@ -95,24 +92,26 @@ Examples:
             base_delay: Base delay for exponential backoff (seconds)
             max_delay: Maximum delay between retries (seconds)
             timeout: Request timeout in seconds
-            mock_mode: If True, use mock responses instead of real API calls
+
+        Raises:
+            ValueError: If no API key provided
         """
         self.api_key = api_key or os.getenv("CLAUDE_API_KEY")
+
+        if not self.api_key:
+            raise ValueError(
+                "CLAUDE_API_KEY required. Set environment variable or pass api_key parameter. "
+                "Get API key from: https://console.anthropic.com"
+            )
+
         self.model = model
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
         self.timeout = timeout
-        self.mock_mode = mock_mode
 
-        if not mock_mode and not self.api_key:
-            logger.warning("No API key provided, falling back to mock mode")
-            self.mock_mode = True
-
-        # Initialize Anthropic client only when not in mock mode
-        self._client = None
-        if not self.mock_mode:
-            self._client = AsyncAnthropic(api_key=self.api_key, timeout=self.timeout)
+        # Initialize Anthropic client
+        self._client = AsyncAnthropic(api_key=self.api_key, timeout=self.timeout)
 
         self._call_count = 0
         self._error_count = 0
@@ -132,9 +131,6 @@ Examples:
             ClaudeRateLimitError: If rate limit exceeded
             ClaudeSDKError: For other SDK errors
         """
-        if self.mock_mode:
-            return await self._mock_translate(request)
-
         return await self._translate_with_retry(request)
 
     async def translate_query_stream(
@@ -152,25 +148,8 @@ Examples:
             ClaudeAPIError: If API request fails
             ClaudeRateLimitError: If rate limit exceeded
         """
-        if self.mock_mode:
-            # Mock streaming by yielding partial responses
-            response = await self._mock_translate(request)
-            words = response.content.split()
-            current_content = ""
-            for word in words:
-                current_content += word + " "
-                yield ClaudeAPIResponse(
-                    content=current_content.strip(),
-                    stop_reason=None,
-                    usage={"input_tokens": 0, "output_tokens": len(current_content.split())},
-                    model=self.model,
-                    metadata={"streaming": True},
-                )
-            # Final response
+        async for response in self._stream_with_retry(request):
             yield response
-        else:
-            async for response in self._stream_with_retry(request):
-                yield response
 
     async def _translate_with_retry(self, request: ClaudeAPIRequest) -> ClaudeAPIResponse:
         """Translate with retry logic and exponential backoff.
@@ -282,7 +261,7 @@ Examples:
             ClaudeRateLimitError: If rate limited
         """
         if not self._client:
-            raise ClaudeSDKError("Client not initialized - check API key or use mock_mode=True")
+            raise ClaudeSDKError("Client not initialized - check API key")
 
         try:
             # Use system prompt from request or default
@@ -384,7 +363,7 @@ Examples:
             ClaudeAPIError: If API call fails
         """
         if not self._client:
-            raise ClaudeSDKError("Client not initialized - check API key or use mock_mode=True")
+            raise ClaudeSDKError("Client not initialized - check API key")
 
         try:
             # Use system prompt from request or default
@@ -479,99 +458,6 @@ Examples:
         except Exception as e:
             logger.error(f"Unexpected error during streaming: {str(e)}")
             raise ClaudeSDKError(f"Unexpected error: {str(e)}")
-
-    async def _mock_translate(self, request: ClaudeAPIRequest) -> ClaudeAPIResponse:
-        """Mock translation for testing without API calls.
-
-        Args:
-            request: Translation request
-
-        Returns:
-            Mocked translation response
-        """
-        self._call_count += 1
-
-        # Simulate API latency
-        await asyncio.sleep(0.1)
-
-        # Extract query from prompt
-        prompt = request.prompt.lower()
-
-        # Generate mock KQL based on prompt patterns
-        kql = self._generate_mock_kql(prompt)
-
-        input_tokens = len(request.prompt.split())
-        output_tokens = len(kql.split())
-        self._total_tokens += input_tokens + output_tokens
-
-        return ClaudeAPIResponse(
-            content=kql,
-            stop_reason="end_turn",
-            usage={
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-            },
-            model=self.model,
-            metadata={
-                "mock": True,
-                "call_count": self._call_count,
-            },
-        )
-
-    def _generate_mock_kql(self, prompt: str) -> str:
-        """Generate mock KQL based on prompt patterns.
-
-        Args:
-            prompt: Natural language prompt
-
-        Returns:
-            Mock KQL query
-        """
-        # Node queries
-        if "find all nodes" in prompt or "get all nodes" in prompt:
-            if "label" in prompt or "type" in prompt:
-                # Extract label if possible
-                if "'person'" in prompt or '"person"' in prompt:
-                    return "graph.nodes | where labels has 'Person'"
-                elif "'movie'" in prompt or '"movie"' in prompt:
-                    return "graph.nodes | where labels has 'Movie'"
-                else:
-                    return "graph.nodes | where labels has 'Entity'"
-            return "graph.nodes"
-
-        # Property queries
-        if "named" in prompt or "name ==" in prompt or "name is" in prompt:
-            if "'alice'" in prompt or '"alice"' in prompt:
-                return "graph.nodes | where properties.name == 'Alice'"
-            elif "'bob'" in prompt or '"bob"' in prompt:
-                return "graph.nodes | where properties.name == 'Bob'"
-            else:
-                return "graph.nodes | where properties.name == 'Unknown'"
-
-        # Edge queries
-        if "edge" in prompt or "relationship" in prompt:
-            if "knows" in prompt:
-                return "graph.edges | where type == 'KNOWS'"
-            elif "likes" in prompt:
-                return "graph.edges | where type == 'LIKES'"
-            else:
-                return "graph.edges"
-
-        # Path queries
-        if "path" in prompt or "connected" in prompt:
-            return "graph.paths | where source.labels has 'Person' and target.labels has 'Person'"
-
-        # Count queries
-        if "count" in prompt or "how many" in prompt:
-            if "node" in prompt:
-                return "graph.nodes | count"
-            elif "edge" in prompt:
-                return "graph.edges | count"
-            else:
-                return "graph.nodes | count"
-
-        # Default fallback
-        return "graph.nodes | take 10"
 
     def get_statistics(self) -> Dict[str, int]:
         """Get client statistics.
