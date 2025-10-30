@@ -1,3 +1,5 @@
+# Note: this is currently an AI Generated Experimental Code Base - Use at your own risk!
+
 # Yellowstone
 
 Cypher-to-KQL translator for Microsoft Sentinel, enabling graph query capabilities for security analysts.
